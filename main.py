@@ -1,3 +1,5 @@
+from copyreg import constructor
+import math
 from manim import *
 import numpy as np
 
@@ -130,41 +132,144 @@ class BasisTimesI(Scene):
         numplane = ComplexPlane().add_coordinates()
         circle = Circle(1, color=WHITE)
 
-        points = [
-            [ 1,  0, 0],
-            [ 0,  1, 0],
-            [-1,  0, 0],
-            [ 0, -1, 0]
-        ]
+        labels = ["1", "i", "-1", "-i"]
+        points = [c1, ci, -c1, -ci]
 
-        dots = VGroup(*map( lambda x: Dot(x), points ))
+        dots = VGroup(*map( getDot, points, labels ))
 
         arcs = []
         for i in range(len(points)):
             j = (i + 1) % len(points)
             pointI = points[i]
             pointJ = points[j]
-            arc = CurvedArrow(pointI, pointJ, radius=2, tip_length=.2)
+            normal = cwnormal(pointJ - pointI)
+            color = BLUE
+            arc = CurvedArrow(pointI, pointJ, radius=1, tip_length=.2, color=color)
+            label = MathTex("i", color=color).next_to(arc.get_center(), normal)
+            arc = VGroup(arc, label)
             arcs.append(arc)
         arcs = VGroup(*arcs)
 
         self.play( Create(numplane) )
 
-        self.play( FadeIn(dots[0]) )
+        self.play(
+            numplane.coordinate_labels.animate.set_opacity(.25),
+            numplane.animate.set_opacity(.25),
+            FadeIn(dots[0])
+        )
         for i in range(3):
             self.play( FadeIn(dots[i + 1]), FadeIn(arcs[i]))
         self.play( FadeIn(arcs[3]))
 
-        arrow = Arrow(ORIGIN, c1, color=YELLOW, buff=0)
-        self.play(FadeIn(arrow), FadeOut( arcs, dots ))
+        arrow = Arrow(ORIGIN, c1, color=RED, buff=0)
+        self.play(FadeIn(arrow), FadeOut( dots, arcs ))
         for i in range(4):
-            self.play( Rotate(arrow, PI / 2, about_point=ORIGIN) )
+            self.play( Rotate(arrow, PI / 2, about_point=ORIGIN), FadeIn(arcs[i]) )
             self.wait(.5)
 
         self.wait()
 
 class ArbitraryTimesI(Scene):
-    pass
+    def construct(self):
+        v = np.array([3, 2, 0])
+        iv = ccnormal(v)
+        arrow_re_ref = Arrow(ORIGIN, v[0] * c1, buff=0, color=RED)
+        arrow_im_ref = Arrow(ORIGIN, v[1] * ci, buff=0, color=GREEN)
+        arrow_im_ref.shift(arrow_re_ref.get_end())
+
+        dot_v_label = MathTex("a + bi", tex_to_color_map={ "a": RED, "b": GREEN })
+        dot_v = getDot(v, dot_v_label).set_z_index(1)
+        dot_iv_label = MathTex("i(a + bi)", tex_to_color_map={ "a": RED, "b": GREEN })
+        dot_iv_label_2 = MathTex("-b + ai", tex_to_color_map={ "a": RED, "b": GREEN })
+        dot_iv = getDot(iv, dot_iv_label).set_z_index(1)
+        dot_iv_label_2.move_to(dot_iv_label)
+
+        numplane = ComplexPlane().add_coordinates()
+
+        arrow_re = arrow_re_ref.copy()
+        arrow_im = arrow_im_ref.copy()
+
+        self.add(numplane)
+        self.play( GrowFromCenter(dot_v[0]), Write(dot_v[1]) )
+        self.play( GrowArrow(arrow_re) )
+        self.play( GrowArrow(arrow_im) )
+
+        self.wait()
+
+        self.play(
+            Rotate( arrow_re, PI / 2, about_point=arrow_re.get_start() ),
+            Rotate( arrow_im, PI / 2, about_point=arrow_im.get_start() )
+        )
+        self.play( arrow_im.animate.shift( arrow_re.get_end() - arrow_im.get_start() ) )
+        self.play( FadeIn( arrow_re_ref, arrow_im_ref ) )
+        self.play(GrowFromCenter(dot_iv[0]), Write(dot_iv[1]))
+        self.play(Transform(dot_iv_label, dot_iv_label_2))
+
+        self.play(
+            Transform( arrow_re, arrow_re_ref ),
+            Transform( arrow_im, arrow_im_ref )
+        )
+
+        arrow_comp_ref = Arrow(ORIGIN, v, buff=0)
+        arrow_comp = arrow_comp_ref.copy()
+
+        self.play( FadeIn(arrow_comp) )
+        self.add(arrow_comp_ref)
+        arrows = VGroup(arrow_re, arrow_im, arrow_comp)
+
+        self.play( Rotate(arrows, PI / 2, about_point=ORIGIN) )
+
+        right_angle = RightAngle(arrow_comp_ref, arrow_comp, .5)
+
+        self.play( Create(right_angle) )
+        
+        steps = [
+            "(a, b) \cdot (-b, a)",
+            "-ab + ba",
+            "0"
+        ]
+        color_map = { "a": GREEN, "b": RED }
+        
+        step_tex = MathTex(steps[0], tex_to_color_map=color_map).move_to(ORIGIN + DOWN * 2)
+        step_rect = SurroundingRectangle(step_tex, color=WHITE).set_fill(BLACK, opacity=1)
+        step = VGroup(step_rect, step_tex)
+        self.play( Write(step) )
+
+        for i in range(1, len(steps)):
+            self.wait()
+            self.play( 
+                Transform( 
+                    step_tex, 
+                    MathTex(steps[i], tex_to_color_map=color_map).move_to(ORIGIN + DOWN * 2)
+                )
+            )
+
+        self.wait()
+
+class ArbitraryTimesArbitrary(Scene):
+    def construct(self):
+        numplane = ComplexPlane().add_coordinates()
+        circle = Circle(1, color=WHITE)
+        circle.stroke_width = 2
+
+        self.add(numplane, circle)
+        self.wait()
+
+        v = np.array([3, -2, 0])
+        u_angle = PI / 4
+        u = np.array([math.cos(u_angle), math.sin(u_angle), 0])
+
+        arrow_u = Arrow(ORIGIN, u, buff=0, color=BLUE)
+        arrow_v = Arrow(ORIGIN, v, buff=0, color=YELLOW)
+
+        self.play( GrowArrow(arrow_v) )
+        self.play( GrowArrow(arrow_u) )
+
+        angle = Angle(Line(ORIGIN, RIGHT), arrow_u, radius=0.25)
+
+        self.play( Create(angle) )
+
+        self.wait()
 
 def set_updating(updating, *mobjects):
     for mobj in mobjects:
@@ -196,5 +301,15 @@ def easyAnimated(get_mobject):
     mobject.add_updater(update)
     return mobject
 
+def getDot(point, label):
+    dot = Dot(point)
+    direction = point / np.linalg.norm(point)
+    if isinstance(label, str):
+        label = MathTex(label)
+    label.next_to(dot, direction)
+    return VGroup(dot, label)
+
 def ccnormal(vec):
     return np.array([ -vec[1], vec[0], vec[2] ])
+def cwnormal(vec):
+    return np.array([ vec[1], -vec[0], vec[2] ])
