@@ -1,6 +1,9 @@
 from manim import *
 import numpy as np
 
+c1 = np.array([1, 0, 0])
+ci = np.array([0, 1, 0])
+
 class CreateTable(Scene):
     def construct(self):
         table = MathTable(
@@ -18,8 +21,6 @@ class CreateTable(Scene):
 class AnimateAngle(Scene):
     def construct(self):
         rotation_center = ORIGIN
-        comp_1 = np.array([1, 0, 0])
-        comp_i = np.array([0, 1, 0])
 
         theta_tracker = ValueTracker(30)
         biv_slide_tracker = ValueTracker(0)
@@ -28,12 +29,12 @@ class AnimateAngle(Scene):
         vec_b = 2
 
         arrow_v = easyAnimated(
-            lambda: Arrow(ORIGIN, comp_1, buff=0, color=RED, z_index=1).rotate(
+            lambda: Arrow(ORIGIN, c1, buff=0, color=RED, z_index=1).rotate(
                 theta_tracker.get_value() * DEGREES, about_point=rotation_center
             )
         )
         arrow_iv = easyAnimated(
-            lambda: Arrow(ORIGIN, comp_1, buff=0, color=GREEN, z_index=1).rotate(
+            lambda: Arrow(ORIGIN, c1, buff=0, color=GREEN, z_index=1).rotate(
                 (theta_tracker.get_value() + 90) * DEGREES, about_point=rotation_center
             )
         )
@@ -51,12 +52,12 @@ class AnimateAngle(Scene):
         self.play(theta_tracker.animate.set_value(20))
 
         arrow_av = easyAnimated(
-            lambda: Arrow(ORIGIN, comp_1 * vec_a, buff=0).rotate(
+            lambda: Arrow(ORIGIN, c1 * vec_a, buff=0).rotate(
                 theta_tracker.get_value() * DEGREES, about_point=rotation_center
             )
         )
         arrow_biv = easyAnimated(
-            lambda: Arrow(ORIGIN, comp_1 * vec_b, buff=0).rotate(
+            lambda: Arrow(ORIGIN, c1 * vec_b, buff=0).rotate(
                 (theta_tracker.get_value() + 90) * DEGREES, about_point=rotation_center
             ).shift(arrow_v.get_unit_vector() * vec_a * biv_slide_tracker.get_value())
         )
@@ -123,6 +124,47 @@ class AnimateAngle(Scene):
         )
 
         self.wait(2)
+
+class BasisTimesI(Scene):
+    def construct(self):
+        numplane = ComplexPlane().add_coordinates()
+        circle = Circle(1, color=WHITE)
+
+        points = [
+            [ 1,  0, 0],
+            [ 0,  1, 0],
+            [-1,  0, 0],
+            [ 0, -1, 0]
+        ]
+
+        dots = VGroup(*map( lambda x: Dot(x), points ))
+
+        arcs = []
+        for i in range(len(points)):
+            j = (i + 1) % len(points)
+            pointI = points[i]
+            pointJ = points[j]
+            arc = CurvedArrow(pointI, pointJ, radius=2, tip_length=.2)
+            arcs.append(arc)
+        arcs = VGroup(*arcs)
+
+        self.play( Create(numplane) )
+
+        self.play( FadeIn(dots[0]) )
+        for i in range(3):
+            self.play( FadeIn(dots[i + 1]), FadeIn(arcs[i]))
+        self.play( FadeIn(arcs[3]))
+
+        arrow = Arrow(ORIGIN, c1, color=YELLOW, buff=0)
+        self.play(FadeIn(arrow), FadeOut( arcs, dots ))
+        for i in range(4):
+            self.play( Rotate(arrow, PI / 2, about_point=ORIGIN) )
+            self.wait(.5)
+
+        self.wait()
+
+class ArbitraryTimesI(Scene):
+    pass
 
 def set_updating(updating, *mobjects):
     for mobj in mobjects:
