@@ -1,7 +1,9 @@
-from copyreg import constructor
 import math
 from manim import *
 import numpy as np
+
+from ExternalLabeledDot import ExternalLabeledDot
+
 
 c1 = np.array([1, 0, 0])
 ci = np.array([0, 1, 0])
@@ -20,129 +22,29 @@ class CreateTable(Scene):
         self.play(table.create())
         self.wait()
 
-class AnimateAngle(Scene):
-    def construct(self):
-        rotation_center = ORIGIN
-
-        theta_tracker = ValueTracker(30)
-        biv_slide_tracker = ValueTracker(0)
-
-        vec_a = 3
-        vec_b = 2
-
-        arrow_v = easyAnimated(
-            lambda: Arrow(ORIGIN, c1, buff=0, color=RED, z_index=1).rotate(
-                theta_tracker.get_value() * DEGREES, about_point=rotation_center
-            )
-        )
-        arrow_iv = easyAnimated(
-            lambda: Arrow(ORIGIN, c1, buff=0, color=GREEN, z_index=1).rotate(
-                (theta_tracker.get_value() + 90) * DEGREES, about_point=rotation_center
-            )
-        )
-
-        text_v = attatchToArrow(arrow_v, MathTex("v", color=RED, z_index=1), -.5)
-        text_iv =  attatchToArrow(arrow_iv, MathTex("iv", color=GREEN, z_index=1))
-
-        numberplane = ComplexPlane().add_coordinates()
-
-        self.add(numberplane, arrow_v, arrow_iv, text_v, text_iv)
-        self.wait()
-
-        self.play(theta_tracker.animate.set_value(50))
-        self.play(theta_tracker.animate.set_value(10))
-        self.play(theta_tracker.animate.set_value(20))
-
-        arrow_av = easyAnimated(
-            lambda: Arrow(ORIGIN, c1 * vec_a, buff=0).rotate(
-                theta_tracker.get_value() * DEGREES, about_point=rotation_center
-            )
-        )
-        arrow_biv = easyAnimated(
-            lambda: Arrow(ORIGIN, c1 * vec_b, buff=0).rotate(
-                (theta_tracker.get_value() + 90) * DEGREES, about_point=rotation_center
-            ).shift(arrow_v.get_unit_vector() * vec_a * biv_slide_tracker.get_value())
-        )
-
-        text_av = attatchToArrow(arrow_av, MathTex("av", color=RED, z_index=1, substrings_to_isolate="a"), -.5)
-        text_biv =  attatchToArrow(arrow_biv, MathTex("biv", color=GREEN, z_index=1, substrings_to_isolate="b"))
-        text_av.set_color_by_tex("a", YELLOW)
-        text_biv.set_color_by_tex("b", YELLOW)
-
-        text_v.clear_updaters()
-        text_iv.clear_updaters()
-        set_updating(False, arrow_av, arrow_biv)
-        self.play(FadeIn( arrow_av, arrow_biv, text_av, text_biv), FadeOut(text_v, text_iv))
-        set_updating(True, arrow_av, arrow_biv)
-
-        self.play(biv_slide_tracker.animate.set_value(1))
-
-        arrow_uv = easyAnimated(
-            lambda: Arrow(ORIGIN, arrow_biv.get_end(), buff=0, color=BLUE)
-        )
-
-        text_uv = MathTex("av + biv", z_index=1, substrings_to_isolate=["v", "iv", "a", "b"])
-        attatchToArrow(arrow_uv, text_uv, .5, aligned_edge=[1, 0, 0], position="end")
-        text_uv.set_color_by_tex("v", RED)
-        text_uv.set_color_by_tex("iv", GREEN)
-        text_uv.set_color_by_tex("a", YELLOW)
-        text_uv.set_color_by_tex("b", YELLOW)
-
-        set_updating( False, arrow_uv )
-        self.play( FadeIn(arrow_uv) )
-        self.play( Write(text_uv) )
-        set_updating( True, arrow_uv )
-
-        self.wait(2)
-
-        self.play(theta_tracker.animate.set_value(0.001))
-
-        text_a = attatchToArrow(arrow_av, MathTex("a", z_index=1, color=YELLOW), -.5)
-        text_bi = attatchToArrow(arrow_biv, MathTex("bi", z_index=1, color=YELLOW, substrings_to_isolate="i"))
-        text_bi.set_color_by_tex("i", WHITE)
-
-        text_u = MathTex("a + bi", z_index=1, substrings_to_isolate=["a", "b"])
-        attatchToArrow(arrow_uv, text_u, .5, aligned_edge=[1, 0, 0], position="end")
-        text_u.set_color_by_tex("a", YELLOW)
-        text_u.set_color_by_tex("b", YELLOW)
-
-        text_av_copy = text_av.copy()
-        text_biv_copy = text_biv.copy()
-        text_uv_copy = text_uv.copy()
-
-        self.play(
-            Transform(text_av, text_a),
-            Transform(text_biv, text_bi),
-            Transform(text_uv, text_u)
-        )
-
-        self.wait(2)
-
-        self.play(
-            theta_tracker.animate.set_value(20),
-            Transform(text_av, text_av_copy),
-            Transform(text_biv, text_biv_copy),
-            Transform(text_uv, text_uv_copy)
-        )
-
-        self.wait(2)
-
-class BasisTimesI(Scene):
+class ComponentTimesI(Scene):
     def construct(self):
         numplane = ComplexPlane().add_coordinates()
-        circle = Circle(1, color=WHITE)
 
         labels = ["1", "i", "-1", "-i"]
         points = [c1, ci, -c1, -ci]
 
-        dots = VGroup(*map( getDot, points, labels ))
+        def labeled_dot(point, label):
+            return ExternalLabeledDot(
+                Dot(point),
+                label,
+                direction=normalize(point),
+                distance=1
+            )
+
+        dots = VGroup(*map( labeled_dot, points, labels ))
 
         arcs = []
         for i in range(len(points)):
             j = (i + 1) % len(points)
             pointI = points[i]
             pointJ = points[j]
-            normal = cwnormal(pointJ - pointI)
+            normal = rotate_cw(pointJ - pointI)
             color = BLUE
             arc = CurvedArrow(pointI, pointJ, radius=1, tip_length=.2, color=color)
             label = MathTex("i", color=color).next_to(arc.get_center(), normal)
@@ -171,18 +73,22 @@ class BasisTimesI(Scene):
 
 class ArbitraryTimesI(Scene):
     def construct(self):
+        color_map = { "a": RED, "b": GREEN }
+
         v = np.array([3, 2, 0])
-        iv = ccnormal(v)
+        iv = rotate_cc(v)
         arrow_re_ref = Arrow(ORIGIN, v[0] * c1, buff=0, color=RED)
         arrow_im_ref = Arrow(ORIGIN, v[1] * ci, buff=0, color=GREEN)
         arrow_im_ref.shift(arrow_re_ref.get_end())
 
-        dot_v_label = MathTex("a + bi", tex_to_color_map={ "a": RED, "b": GREEN })
-        dot_v = getDot(v, dot_v_label).set_z_index(1)
-        dot_iv_label = MathTex("i(a + bi)", tex_to_color_map={ "a": RED, "b": GREEN })
-        dot_iv_label_2 = MathTex("-b + ai", tex_to_color_map={ "a": RED, "b": GREEN })
-        dot_iv = getDot(iv, dot_iv_label).set_z_index(1)
-        dot_iv_label_2.move_to(dot_iv_label)
+        dot_v = ExternalLabeledDot( 
+            Dot(v),  MathTex("a + bi", tex_to_color_map=color_map),
+            distance=1, z_index=1 )
+        
+        dot_iv = ExternalLabeledDot( 
+            Dot(iv),  MathTex("i(a + bi)", tex_to_color_map=color_map),
+            direction=normalize(LEFT + UP),
+            distance=1, z_index=1 )
 
         numplane = ComplexPlane().add_coordinates()
 
@@ -190,7 +96,7 @@ class ArbitraryTimesI(Scene):
         arrow_im = arrow_im_ref.copy()
 
         self.add(numplane)
-        self.play( GrowFromCenter(dot_v[0]), Write(dot_v[1]) )
+        self.play( dot_v.create_animation() )
         self.play( GrowArrow(arrow_re) )
         self.play( GrowArrow(arrow_im) )
 
@@ -202,8 +108,10 @@ class ArbitraryTimesI(Scene):
         )
         self.play( arrow_im.animate.shift( arrow_re.get_end() - arrow_im.get_start() ) )
         self.play( FadeIn( arrow_re_ref, arrow_im_ref ) )
-        self.play(GrowFromCenter(dot_iv[0]), Write(dot_iv[1]))
-        self.play(Transform(dot_iv_label, dot_iv_label_2))
+        self.play( dot_iv.create_animation() )
+        self.play( animate_replace_tex( dot_iv.label, "ai + bi^2", color_map, ORIGIN ) )
+        self.play( animate_replace_tex( dot_iv.label, "ai + b(-1)", color_map, ORIGIN ) )
+        self.play( animate_replace_tex( dot_iv.label, "-b + ai", color_map, ORIGIN ) )
 
         self.play(
             Transform( arrow_re, arrow_re_ref ),
@@ -223,32 +131,22 @@ class ArbitraryTimesI(Scene):
 
         self.play( Create(right_angle) )
         
-        steps = [
-            "(a, b) \cdot (-b, a)",
-            "-ab + ba",
-            "0"
-        ]
-        color_map = { "a": GREEN, "b": RED }
-        
-        step_tex = MathTex(steps[0], tex_to_color_map=color_map).move_to(ORIGIN + DOWN * 2)
+        step_tex = MathTex("(a, b) \cdot (-b, a)", tex_to_color_map=color_map).move_to(ORIGIN + DOWN * 2)
         step_rect = SurroundingRectangle(step_tex, color=WHITE).set_fill(BLACK, opacity=1)
         step = VGroup(step_rect, step_tex)
         self.play( Write(step) )
-
-        for i in range(1, len(steps)):
-            self.wait()
-            self.play( 
-                Transform( 
-                    step_tex, 
-                    MathTex(steps[i], tex_to_color_map=color_map).move_to(ORIGIN + DOWN * 2)
-                )
-            )
+        self.wait()
+        self.play( animate_replace_tex(step_tex, "-ab + ba", color_map, ORIGIN) )
+        self.wait()
+        self.play( animate_replace_tex(step_tex, "0", color_map, ORIGIN) )
 
         self.wait()
 
 class ArbitraryTimesArbitrary(Scene):
     def construct(self):
-        numplane = ComplexPlane().add_coordinates()
+        color_map = { "a": RED, "b": GREEN, "u": BLUE, "v": YELLOW }
+
+        numplane = ComplexPlane().add_coordinates().set_z_index(-100)
         circle = Circle(1, color=WHITE)
         circle.stroke_width = 2
 
@@ -259,57 +157,95 @@ class ArbitraryTimesArbitrary(Scene):
         u_angle = PI / 4
         u = np.array([math.cos(u_angle), math.sin(u_angle), 0])
 
-        arrow_u = Arrow(ORIGIN, u, buff=0, color=BLUE)
-        arrow_v = Arrow(ORIGIN, v, buff=0, color=YELLOW)
+        arrow_u = Arrow(ORIGIN, u, buff=0, color=BLUE, z_index=1)
+        arrow_v = Arrow(ORIGIN, v, buff=0, color=YELLOW, z_index=1)
 
         self.play( GrowArrow(arrow_v) )
+
+        dot_v = ExternalLabeledDot(
+            Dot(arrow_v.get_end()),
+            MathTex("a + bi", tex_to_color_map=color_map),
+            direction=normalize(DOWN + RIGHT)
+        )
+        self.play( dot_v.create_animation() )
+
         self.play( GrowArrow(arrow_u) )
 
         angle = Angle(Line(ORIGIN, RIGHT), arrow_u, radius=0.25)
 
         self.play( Create(angle) )
 
+        arrow_v_re_ref = Arrow(ORIGIN, [v[0], 0, 0], buff=0, color=RED)
+        arrow_v_im_ref = Arrow(ORIGIN, [0, v[1], 0], buff=0, color=GREEN).shift(arrow_v_re_ref.get_end())
+        arrow_v_re = arrow_v_re_ref.copy()
+        arrow_v_im = arrow_v_im_ref.copy()
+
+        self.play( FadeIn(arrow_v_re, arrow_v_im) )
+
+        # Show component angles
+        def get_angle_comparison(arrow_ref, angle):
+            arrow_base = arrow_ref.copy()
+            arrow_base.set_opacity(0.5)
+            arrow_rot = arrow_ref.copy().rotate(angle, about_point=arrow_ref.get_start())
+            angle = Angle(arrow_base, arrow_rot, radius=0.35)
+            return VDict([ ("arrow", arrow_base), ("angle", angle) ])#.set_z_index(-1)
+
+        comparison_re = get_angle_comparison( arrow_v_re, u_angle )
+        comparison_im = get_angle_comparison( arrow_v_im, u_angle )
+
+        self.add( comparison_re["arrow"], comparison_im["arrow"] )
+
+        self.play(
+            Rotate(arrow_v_re, u_angle, about_point=ORIGIN),
+            Rotate(arrow_v_im, u_angle, about_point=arrow_v_im.get_start()),
+            Create(comparison_re["angle"]),
+            Create(comparison_im["angle"])
+        )
+        self.play( Indicate(angle), run_time=2 )
+        self.play( 
+            Indicate(comparison_re["angle"]),
+            Indicate(comparison_im["angle"]),
+            run_time=2
+        )
+
+        self.play(
+            Uncreate(comparison_re["angle"]),
+            Uncreate(comparison_im["angle"]),
+            arrow_v_im.animate.shift(
+                arrow_v_re.get_end() - arrow_v_im.get_start()
+            )
+        )
+
+        #  Show uv
+        dot_uv = ExternalLabeledDot(
+            Dot(arrow_v_im.get_end()),
+            MathTex("ua + ubi", tex_to_color_map=color_map)
+        )
+        self.play( dot_uv.create_animation() )
+        self.play( animate_replace_tex(dot_uv.label, "u(a + bi)", color_map) )
+        self.play( animate_replace_tex(dot_uv.label, "uv", color_map) )
+
         self.wait()
 
-def set_updating(updating, *mobjects):
-    for mobj in mobjects:
-        if updating:
-            mobj.resume_updating()
-        else:
-            mobj.suspend_updating()
+        self.play( FadeOut(
+            arrow_v_re, arrow_v_im,
+            comparison_re["arrow"], comparison_im["arrow"]
+        ) )
 
-def attatchToArrow(arrow, mobject, dist=.5, aligned_edge=[0, 0, 0], position="center"):
-    def move(x):
-        unit_vec = arrow.get_unit_vector()
-        left_norm = ccnormal(unit_vec)
-        pos = arrow.get_center() if position == "center" else arrow.get_end()
-        return x.next_to(
-            pos, left_norm * dist,
-            aligned_edge=aligned_edge
+        comparison_v = get_angle_comparison(arrow_v, u_angle )
+        self.add(comparison_v["arrow"])
+        self.play( 
+            Rotate(arrow_v, u_angle, about_point=ORIGIN),
+            Create(comparison_v["angle"])
         )
-    mobject.add_updater(move)
-    return move(mobject)
 
-def easyAnimated(get_mobject):
-    mobject = get_mobject()
-    def update(x):
-        fill = x.fill_color
-        stroke = x.stroke_color
-        x.become(get_mobject())
-        x.set_stroke(stroke)
-        x.set_fill(fill)
-    mobject.add_updater(update)
-    return mobject
+        self.wait()
 
-def getDot(point, label):
-    dot = Dot(point)
-    direction = point / np.linalg.norm(point)
-    if isinstance(label, str):
-        label = MathTex(label)
-    label.next_to(dot, direction)
-    return VGroup(dot, label)
+def animate_replace_tex(tex, text, tex_to_color_map, aligned_edge=LEFT):
+    return tex.animate.become( MathTex( text, tex_to_color_map=tex_to_color_map ).move_to(tex, aligned_edge) )
 
-def ccnormal(vec):
+def rotate_cc(vec):
     return np.array([ -vec[1], vec[0], vec[2] ])
-def cwnormal(vec):
+    
+def rotate_cw(vec):
     return np.array([ vec[1], -vec[0], vec[2] ])
