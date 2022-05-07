@@ -18,24 +18,27 @@ class ExternalLabeledDot(VMobject):
 
         self.direction = direction
         self.distance = distance
-        if aligned_edge == None:
+        if aligned_edge is None:
             self.aligned_edge = -self.direction
+        else:
+            self.aligned_edge = aligned_edge
+        
+        def update_label_position(label):
+            label.next_to(self.dot, direction=self.direction * self.distance, aligned_edge=self.aligned_edge)
 
-        self.update_label_position()
+        update_label_position(self.label)
+        self.label.add_updater(update_label_position)
     
-    def update_label_position(self):
-        self.label.next_to(self.dot, direction=self.direction * self.distance, aligned_edge=self.aligned_edge)
-
     def create_animation(self):
         return AnimationGroup(
             GrowFromCenter(self.dot),
             Write(self.label)
         )
 
-class _TestScene(Scene):
-    def construct(self):
-        dot = ExternalLabeledDot( Dot(ORIGIN), "e^{i\pi}", distance=1 )
-        self.play( FadeIn(dot) )
-        self.play( Transform( dot.label, MathTex("-1").next_to(dot.label, RIGHT) ) )
-        self.play( dot.animate.update_label_position() )
-        self.wait()
+# class _TestScene(Scene):
+#     def construct(self):
+#         dot = ExternalLabeledDot( Dot(ORIGIN), "e^{i\pi}", distance=1 )
+#         self.play( FadeIn(dot) )
+#         self.play( Transform( dot.label, MathTex("-1").next_to(dot.label, RIGHT) ) )
+#         self.play( dot.animate.update_label_position() )
+#         self.wait()
