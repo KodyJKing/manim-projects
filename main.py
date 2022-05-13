@@ -1,4 +1,3 @@
-from copyreg import constructor
 import math
 from manim import *
 import numpy as np
@@ -11,32 +10,54 @@ from utils import animate_replace_tex
 c1 = np.array([1, 0, 0])
 ci = np.array([0, 1, 0])
 
-def quat_ijk_times_table(tex_to_color_map=None):
-    return MathTable(
-        [["",  "i",  "j",  "k"],
-        ["i", "-1",  "k", "-j"],
-        ["j", "-k", "-1",  "i"],
-        ["k",  "j", "-i", "-1"]],
-        include_outer_lines=True,
-        element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
-    )
+# ihat = "\hat{\imath}"
+# jhat = "\hat{\jmath}"
+# khat = "\hat{k}"
+# ihatn = "-" + ihat
+# jhatn = "-" + jhat
+# khatn = "-" + khat
 
-def quat_fill_times_table(tex_to_color_map=None):
-    return MathTable(
-            [["", "1",  "i",  "j",  "k"],
-            ["1", "1",  "i",  "j",  "k"],
-            ["i", "i", "-1",  "k", "-j"],
-            ["j", "j", "-k", "-1",  "i"],
-            ["k", "k",  "j", "-i", "-1"]],
-            include_outer_lines=True,
-            element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
-        )
+# def vec_ijk_cross_table(tex_to_color_map=None):
+#     ih, jh, kh = ihat, jhat, khat
+#     im, jm, km = ihatn, jhatn, khatn
+#     crossproduct_table = [
+#         ["", ih, jh, kh],
+#         [ih, -1, kh, jm],
+#         [jh, km, -1, ih],
+#         [kh, jh, im, -1]
+#     ]
+#     return MathTable(
+#         crossproduct_table,
+#         include_outer_lines=True,
+#         # element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
+#     )
 
-class CreateTable(Scene):
-    def construct(self):
-        table = quat_fill_times_table()
-        self.play(table.create())
-        self.wait()
+# def quat_ijk_times_table(tex_to_color_map=None):
+#     quaternion_table_ijk = [
+#         ["",  "i",  "j",  "k"],
+#         ["i", "-1",  "k", "-j"],
+#         ["j", "-k", "-1",  "i"],
+#         ["k",  "j", "-i", "-1"]
+#     ]
+#     return MathTable(
+#         quaternion_table_ijk,
+#         include_outer_lines=True,
+#         element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
+#     )
+
+# def quat_fill_times_table(tex_to_color_map=None):
+#     quaternion_table = [
+#         ["", "1",  "i",  "j",  "k"],
+#         ["1", "1",  "i",  "j",  "k"],
+#         ["i", "i", "-1",  "k", "-j"],
+#         ["j", "j", "-k", "-1",  "i"],
+#         ["k", "k",  "j", "-i", "-1"]
+#     ]
+#     return MathTable(
+#         quaternion_table,
+#         include_outer_lines=True,
+#         element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
+#     )
 
 class ComponentTimesI(Scene):
     def construct(self):
@@ -372,50 +393,6 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
 
         self.play( animate_replace_tex( dot_uv.label, "u(a + bi)", color_map ) )
         self.wait()
-
-class QuatDefinition(Scene):
-    def construct(self):
-        color_map = { "i": RED, "j": GREEN, "k": BLUE, "b": WHITE }
-
-        tex_quat_form = MathTex("a + bi + cj + dk", tex_to_color_map=color_map)
-        tex_ijk_definition = MathTex("i^2 = j^2 = k^2 = ijk = -1", tex_to_color_map=color_map)
-
-        equations = VGroup()
-        equations += tex_quat_form
-        equations += tex_ijk_definition
-
-        prev_line = None
-        for line in equations:
-            if prev_line:
-                line.next_to(prev_line, DOWN)
-            prev_line = line
-        equations.move_to(ORIGIN)
-
-        self.play( Write( tex_quat_form ) )
-        self.play( 
-            Circumscribe( VGroup(
-                tex_quat_form.get_part_by_tex("b"),
-                tex_quat_form.get_part_by_tex("k"),
-            ), run_time=3 ),
-            run_time=3
-        )
-        self.play( Write( tex_ijk_definition ) )
-
-        ijk_table = quat_ijk_times_table(color_map).scale(0.75).move_to(RIGHT * 3)
-
-        rect = SurroundingRectangle(tex_ijk_definition)
-        tex_ijk_definition.add(rect)
-        self.play(Create(rect))
-
-        self.play( equations.animate.move_to(LEFT * 3) )
-        self.play( Create(ijk_table) )
-        self.wait(3)
-        self.play( Transform( ijk_table, quat_fill_times_table(color_map).move_to(ijk_table).scale(.5) ) )
-        
-        self.wait()
-
-# class HamiltonProduct(Scene):
-#     def construct(Scene):
 
 def get_angle_comparison(arrow_ref, angle, color=WHITE):
     arrow_base = arrow_ref.copy()
