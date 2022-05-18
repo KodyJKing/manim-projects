@@ -12,6 +12,11 @@ class LabeledArrow(VMobject):
     ):
         super().__init__(**kwargs)
 
+        self.alpha = alpha
+        self.distance = distance
+        self.perp_distance = perp_distance
+        self.aligned_edge = aligned_edge
+
         self.arrow = arrow
         if isinstance(label_or_str, str):
             self.label = MathTex(label_or_str)
@@ -20,14 +25,23 @@ class LabeledArrow(VMobject):
         
         self.add(self.arrow)
         self.add(self.label)
+        
+        self.refresh_updaters()
 
+    def refresh_updaters(self):
         def update_label(label):
             arrow_dir = self.arrow.get_unit_vector()
             length = self.arrow.get_length()
-            position = self.arrow.get_start() + arrow_dir * alpha * length + arrow_dir * distance + rotate_cc(arrow_dir) * perp_distance
-            label.move_to(position, aligned_edge=aligned_edge)
-        
+            position = ( self.arrow.get_start() + arrow_dir * (self.alpha * length + self.distance)
+                + rotate_cc(arrow_dir) * self.perp_distance )
+            label.move_to(position, aligned_edge=self.aligned_edge)
+        self.label.clear_updaters()
         self.label.add_updater(update_label)
+
+    def copy(self):
+        result = super().copy()
+        result.refresh_updaters()
+        return result
     
     def grow_animation(self):
         return GrowFromPoint( self, self.arrow.get_start() )

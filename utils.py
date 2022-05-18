@@ -1,8 +1,15 @@
 from manim import *
 from typing import Callable, Union
 
-def animate_replace_tex(tex, text, tex_to_color_map, aligned_edge=LEFT):
-    return tex.animate.become( MathTex( text, tex_to_color_map=tex_to_color_map ).move_to(tex, aligned_edge) )
+def animate_replace_tex(tex: MathTex, text_or_tex: str | MathTex, tex_to_color_map=None, aligned_edge=LEFT):
+    if isinstance(text_or_tex, str):
+        text_or_tex = MathTex( text_or_tex, tex_to_color_map=tex_to_color_map )
+    return tex.animate.become( text_or_tex.move_to(tex, aligned_edge) )
+
+def tex_matches(tex: MathTex, *parts):
+    matches = [ tex.get_part_by_tex(part) for part in parts ]
+    not_none = [ match for match in matches if not match is None ]
+    return VGroup(*not_none)
 
 # Functional Mobjects
 

@@ -316,6 +316,8 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
         self.add(numplane)
         self.wait(0.5)
 
+        self.add( Dot(ORIGIN).set_z_index(2) )
+
         v = np.array([3, 2, 0])
         u_angle = PI / 12
         u = np.array([math.cos(u_angle), math.sin(u_angle), 0])
@@ -379,6 +381,8 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
             animate_replace_tex( dot_uv.label, "a + bi", color_map ),
             animate_replace_tex( arrow_au.label, "a", color_map ),
             animate_replace_tex( arrow_biu.label, "bi", color_map ),
+            animate_replace_tex( arrow_u.label, "1", color_map ),
+            animate_replace_tex( arrow_iu.label, "i", color_map ),
             run_time=1.5
         )
         self.wait(1)
@@ -387,6 +391,8 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
             animate_replace_tex( dot_uv.label, "au + biu", color_map ),
             animate_replace_tex( arrow_au.label, "au", color_map ),
             animate_replace_tex( arrow_biu.label, "biu", color_map ),
+            animate_replace_tex( arrow_u.label, "u", color_map ),
+            animate_replace_tex( arrow_iu.label, "iu", color_map ),
             run_time=1.5
         )
         self.wait(.5)
