@@ -10,55 +10,6 @@ from utils import animate_replace_tex
 c1 = np.array([1, 0, 0])
 ci = np.array([0, 1, 0])
 
-# ihat = "\hat{\imath}"
-# jhat = "\hat{\jmath}"
-# khat = "\hat{k}"
-# ihatn = "-" + ihat
-# jhatn = "-" + jhat
-# khatn = "-" + khat
-
-# def vec_ijk_cross_table(tex_to_color_map=None):
-#     ih, jh, kh = ihat, jhat, khat
-#     im, jm, km = ihatn, jhatn, khatn
-#     crossproduct_table = [
-#         ["", ih, jh, kh],
-#         [ih, -1, kh, jm],
-#         [jh, km, -1, ih],
-#         [kh, jh, im, -1]
-#     ]
-#     return MathTable(
-#         crossproduct_table,
-#         include_outer_lines=True,
-#         # element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
-#     )
-
-# def quat_ijk_times_table(tex_to_color_map=None):
-#     quaternion_table_ijk = [
-#         ["",  "i",  "j",  "k"],
-#         ["i", "-1",  "k", "-j"],
-#         ["j", "-k", "-1",  "i"],
-#         ["k",  "j", "-i", "-1"]
-#     ]
-#     return MathTable(
-#         quaternion_table_ijk,
-#         include_outer_lines=True,
-#         element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
-#     )
-
-# def quat_fill_times_table(tex_to_color_map=None):
-#     quaternion_table = [
-#         ["", "1",  "i",  "j",  "k"],
-#         ["1", "1",  "i",  "j",  "k"],
-#         ["i", "i", "-1",  "k", "-j"],
-#         ["j", "j", "-k", "-1",  "i"],
-#         ["k", "k",  "j", "-i", "-1"]
-#     ]
-#     return MathTable(
-#         quaternion_table,
-#         include_outer_lines=True,
-#         element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
-#     )
-
 class ComponentTimesI(Scene):
     def construct(self):
         numplane = ComplexPlane().add_coordinates()
@@ -308,20 +259,36 @@ class ArbitraryTimesArbitrary(Scene):
 
         self.wait()
 
-class ArbitraryTimesArbitrary2(MovingCameraScene):
+class ArbitraryTimesArbitrary2(Scene):
     def construct(self):
-        color_map = { "a": RED, "b": GREEN, "u": BLUE, "v": YELLOW, "iu": BLUE_E }
-
-        numplane = ComplexPlane().set_opacity(0.25)
-        self.add(numplane)
-        self.wait(0.5)
-
-        self.add( Dot(ORIGIN).set_z_index(2) )
+        color_map = { 
+            "a": RED, "b": GREEN,
+            "u": BLUE, "v": YELLOW, "iu": BLUE_E,
+            "\\theta_{u}": BLUE, "\\theta_{v}": YELLOW,
+            "r_{u}": BLUE, "r_{v}": YELLOW,
+        }
 
         v = np.array([3, 2, 0])
         u_angle = PI / 12
         u = np.array([math.cos(u_angle), math.sin(u_angle), 0])
         iu = rotate_cc(u)
+
+        # numplane = ComplexPlane().set_opacity(0.25).set_z_index(-2)
+        numplane = Axes(x_range=[-8, 8], y_range=[-8, 8], x_length=None, y_length=None).set_opacity(0.25).set_z_index(-2)
+        numplane_u = NumberPlane(x_range=[-16, 16], y_range=[-16, 16]).set_opacity(0.5).set_z_index(-1).rotate(u_angle)
+
+        self.add(numplane)
+        self.add( Dot(ORIGIN).set_z_index(2) )
+        self.wait(0.5)
+
+        arrow_v = LabeledArrow(
+            Arrow( ORIGIN, v, buff=0, color=YELLOW ),
+            MathTex("v", tex_to_color_map=color_map),
+            # perp_distance=-0.25, distance=0, alpha=0.5
+            aligned_edge=LEFT
+        )
+        arrow_a = Arrow( ORIGIN, v * RIGHT, buff=0, color=RED )
+        arrow_b = Arrow( ORIGIN, v * UP, buff=0, color=GREEN ).shift( v * RIGHT )
 
         arrow_u = LabeledArrow( 
             Arrow( ORIGIN, u, buff=0, color=BLUE ),
@@ -335,12 +302,26 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
         ).set_z_index(1)
 
         line_re = Line(ORIGIN, RIGHT)
+        line_u = Line(ORIGIN, u * 10, color=BLUE )
+        angle_u = Angle( line_re, line_u, radius=1, color=BLUE )
 
-        for arrow in [arrow_u, arrow_iu]:
-            self.play( arrow.grow_animation() )
+        self.play( arrow_v.grow_animation() )
+        self.play(animate_replace_tex(arrow_v.label, "v = a + bi", color_map),  GrowArrow(arrow_a) )
+        # self.play( GrowArrow(arrow_b) )
+        self.wait()
+        self.play( animate_replace_tex(arrow_v.label, "v", color_map), FadeOut( arrow_a, arrow_b ) )
+
+        self.play( arrow_u.grow_animation() )
+        self.play( Create( angle_u ) )
+        self.wait(2)
+        self.play(FadeOut(arrow_v))
+        self.play( arrow_iu.grow_animation() )
+        # for arrow in [arrow_u, arrow_iu]:
         self.wait(0.5)
 
-        rotation_group = VGroup(arrow_u.arrow, arrow_iu.arrow)
+        self.play( Create( numplane_u ) )
+
+        rotation_group = VGroup(arrow_u.arrow, arrow_iu.arrow, numplane_u)
 
         for _delta_angle in [ PI / 4, -PI / 4 -u_angle, u_angle ]:
             self.play( Rotate( rotation_group, _delta_angle, about_point=ORIGIN ), run_time=1.5 )
@@ -369,8 +350,11 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
         self.play( dot_uv.create_animation() )
 
         self.wait(.5)
+
+        self.play( FadeOut( arrow_au, arrow_biu ) )
         
-        rotation_group.add(arrow_au.arrow, arrow_biu.arrow, dot_uv.dot)
+        # rotation_group.add(arrow_au.arrow, arrow_biu.arrow, dot_uv.dot)
+        rotation_group.add( dot_uv.dot)
 
         for _delta_angle in [ PI / 8, -PI / 8 ]:
             self.play( Rotate( rotation_group, _delta_angle, about_point=ORIGIN ), run_time=1.5 )
@@ -379,26 +363,54 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
         self.play( 
             Rotate( rotation_group, -u_angle, about_point=ORIGIN ),
             animate_replace_tex( dot_uv.label, "a + bi", color_map ),
-            animate_replace_tex( arrow_au.label, "a", color_map ),
-            animate_replace_tex( arrow_biu.label, "bi", color_map ),
-            animate_replace_tex( arrow_u.label, "1", color_map ),
-            animate_replace_tex( arrow_iu.label, "i", color_map ),
+            # animate_replace_tex( arrow_au.label, "a", color_map ),
+            # animate_replace_tex( arrow_biu.label, "bi", color_map ),
+            # animate_replace_tex( arrow_u.label, "1", color_map ),
+            # animate_replace_tex( arrow_iu.label, "i", color_map ),
             run_time=1.5
         )
         self.wait(1)
         self.play(
             Rotate( rotation_group, u_angle, about_point=ORIGIN ),
             animate_replace_tex( dot_uv.label, "au + biu", color_map ),
-            animate_replace_tex( arrow_au.label, "au", color_map ),
-            animate_replace_tex( arrow_biu.label, "biu", color_map ),
-            animate_replace_tex( arrow_u.label, "u", color_map ),
-            animate_replace_tex( arrow_iu.label, "iu", color_map ),
+            # animate_replace_tex( arrow_au.label, "au", color_map ),
+            # animate_replace_tex( arrow_biu.label, "biu", color_map ),
+            # animate_replace_tex( arrow_u.label, "u", color_map ),
+            # animate_replace_tex( arrow_iu.label, "iu", color_map ),
             run_time=1.5
         )
         self.wait(.5)
 
         self.play( animate_replace_tex( dot_uv.label, "u(a + bi)", color_map ) )
         self.wait()
+        self.play( animate_replace_tex( dot_uv.label, "uv", color_map ) )
+        self.play( FadeOut(numplane) )
+        self.wait()
+
+        self.play( rotation_group.animate.scale(0.5, about_point=ORIGIN) )
+        self.play( rotation_group.animate.scale(2, about_point=ORIGIN) )
+
+        # arrow_uv = Arrow( ORIGIN, arrow_biu.arrow.get_end(), buff=0 )
+        arrow_uv = Arrow( ORIGIN, dot_uv.dot.get_center(), color=YELLOW, buff=0 )
+        # line_u_dashed = DashedVMobject( line_u )
+
+        angle_uv = Angle( line_u, arrow_uv, radius=1, color=YELLOW )
+
+        self.play( 
+            GrowArrow(arrow_uv),
+            Create(angle_u), Create(angle_uv),
+            # FadeIn(line_u_dashed), 
+            # FadeOut( arrow_au, arrow_biu ),
+            FadeIn( numplane ),
+            # FadeOut( arrow_au.label, arrow_biu.label, arrow_iu, numplane_u )
+            FadeOut( arrow_iu, numplane_u )
+        )
+
+        eq_polar_product = MathTex(
+            r"(r_{u}, \theta_{u})(r_{v}, \theta_{v}) = (r_{u}r_{v}, \theta_{u} + \theta_{v})",
+            tex_to_color_map=color_map)
+        eq_polar_product.to_corner(UL)
+        self.play( Write(eq_polar_product) )
 
 def get_angle_comparison(arrow_ref, angle, color=WHITE):
     arrow_base = arrow_ref.copy()
