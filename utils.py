@@ -11,6 +11,9 @@ def tex_matches(tex: MathTex, *parts):
     not_none = [ match for match in matches if not match is None ]
     return VGroup(*not_none)
 
+def angle_label_pos(line1, line2, radius, **kwargs):
+    return Angle( line1, line2, radius=radius, **kwargs).point_from_proportion(0.5)
+
 # Functional Mobjects
 
 MobjectFunction = Union[Callable[["Mobject"], "Mobject"], Callable[[], "Mobject"]]

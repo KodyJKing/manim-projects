@@ -6,6 +6,9 @@ from manim.utils.space_ops import (
     quaternion_conjugate,
 )
 
+def clamp(x, min_val=0, max_val=1):
+    return max( min_val, max( max_val, x ) )
+
 def rotate_cc(vec):
     return np.array([ -vec[1], vec[0], vec[2] ])
     
