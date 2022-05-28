@@ -1,5 +1,6 @@
 import imp
 from re import M
+from unicodedata import numeric
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
@@ -140,33 +141,21 @@ class QuatDefinition(Scene):
 
 class ThreeD(ThreeDScene):
     def construct(self):
-
-        self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
-
-        axes = ThreeDAxes()
-        self.add(axes)
-
         vi = RIGHT
         vj = UP
         vk = OUT
 
+        self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
+
+        numplane = NumberPlane(x_range=[-10, 10], y_range=[-10, 10])
+        numplane.set_opacity(0).rotate(PI/2, vj)
+        self.add(numplane)
+        axes = ThreeDAxes()
+        self.add(axes)
+
         arrow_i = Arrow3D(ORIGIN, vi, color=RED)
         arrow_j = Arrow3D(ORIGIN, vj, color=GREEN)
         arrow_k = Arrow3D(ORIGIN, vk, color=BLUE)
-        arrow_jm = Arrow3D(ORIGIN, -vj, color=BLUE)
-        arrow_km = Arrow3D(ORIGIN, -vk, color=BLUE)
-
-        plane_r = 0.5
-        def plane_func(u, v):
-            return np.array([ 0, u * plane_r, v * plane_r ])
-        plane = SurfaceClass(
-            plane_func,
-            resolution=(2, 2),
-            v_range=[0, +1],
-            u_range=[0, +1],
-            color=TEAL_E,
-            opacity=0,
-        )
 
         label_dist = 1.25
         tex_i = math_tex("i").move_to(vi * label_dist)
@@ -175,18 +164,23 @@ class ThreeD(ThreeDScene):
         self.add_fixed_orientation_mobjects( tex_i, tex_j, tex_k )
 
         self.play( 
-            FadeIn( arrow_i, arrow_j, arrow_k, plane ),
+            # FadeIn( arrow_i, arrow_j, arrow_k, plane ),
+            FadeIn( arrow_i, arrow_j, arrow_k),
             Create(tex_i), Create(tex_j), Create(tex_k) )
 
         def indicate_arrow(arrow, tex):
             return AnimationGroup( Indicate(arrow, scale_factor=1), Indicate(tex) )
 
-        plane.set_opacity(0.75)
+
+        self.play( indicate_arrow(arrow_i, tex_i) )
+        self.wait()
+        numplane.set_opacity(.25)
         self.play( 
             indicate_arrow(arrow_j, tex_j),
             indicate_arrow(arrow_k, tex_k),
-            GrowFromPoint(plane, ORIGIN) )
-        self.play( indicate_arrow(arrow_i, tex_i) )
+            # GrowFromPoint(plane, ORIGIN) )
+            FadeIn(numplane)
+        )
 
         table = pure_quat_times_table(color_map).scale(0.5).to_edge(LEFT)
         table_background = SurroundingRectangle( table, color=BLACK, fill_color=BLACK, fill_opacity=1, buff=0 )
@@ -232,7 +226,8 @@ class ThreeD(ThreeDScene):
             self.add(*arrows_jk_2)
             self.play( 
                 *[ Rotate( arrow, angle, vi, ORIGIN ) for arrow in arrows_jk_2 ],
-                 indicate_arrow(arrow_i, tex_i), run_time=2 )
+                Rotate(numplane, angle, vi),
+                indicate_arrow(arrow_i, tex_i), run_time=2 )
             self.play( FadeOut(*arrows_jk_2) )
 
             self.play( FadeOut( *arcs, i_rect ) )

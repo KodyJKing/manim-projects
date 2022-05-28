@@ -10,11 +10,17 @@ import numpy as np
 
 from ExternalLabeledDot import ExternalLabeledDot
 from LabeledArrow import LabeledArrow
+from TransformMatchingKeyTex import TransformMatchingKeyTex, set_transform_key
 from mathutils import clamp, rotate_cc, rotate_cw
 from utils import angle_label_pos, animate_replace_tex
 
 c1 = np.array([1, 0, 0])
 ci = np.array([0, 1, 0])
+
+def comp2vec(c: complex):
+    return np.array([c.real, c.imag, 0])
+def imexp(imag: float):
+    return math.cos(imag) + 1j * math.sin(imag)
 
 blank_axes = { "include_ticks": False }
 
@@ -201,6 +207,65 @@ class ComplexNumbers(Scene):
         eq_conjugate_arg = MathTex("arg(\\overline{z}) = -arg(z)").next_to(eq_conjugate, DOWN, aligned_edge=LEFT)
         self.play(Write(eq_conjugate_arg))
 
+class RotationPreview(Scene):
+    def construct(self):
+        u_angle = PI / 4
+        u_modulus = 1.3
+        uc = (math.cos(u_angle) + 1j * math.sin(u_angle)) * u_modulus
+        u = comp2vec(uc)
+        vc = 2 + 1j
+        v = comp2vec(vc)
+        uvc = uc * vc
+        uv = comp2vec(uvc)
+
+        def get_arrow(v, color):
+            arrow = Arrow(ORIGIN, v, buff=0, color=color)
+            dot = Dot(z_index=1)
+            line_re = Line(ORIGIN, RIGHT, color=color)
+            angle = Angle( line_re, arrow, color=color, z_index=-1)
+            return VDict({ "arrow": arrow, "line_re": line_re, "dot": dot, "angle": angle })
+
+        arrow_u = get_arrow(u, BLUE)
+        arrow_v = get_arrow(v, YELLOW)
+        arrow_uv = get_arrow(uv, GREEN)
+
+        title = Tex("Complex Multiplication").to_corner(UL)
+        self.add(title)
+
+        terms = VGroup(arrow_u, MathTex("\\times"), arrow_v, MathTex("="), arrow_uv)
+        self.add(terms)
+        terms.arrange_in_grid(1, 5, buff=1, cell_alignment=DOWN)
+        terms[3].move_to(terms[1], coor_mask=UP) # Fix equal sign to line up with plus sign.
+        terms.move_to(ORIGIN + UP)
+
+        arrow_u_copy = arrow_u.copy()
+        arrow_v_copy = arrow_v.copy()
+
+        self.play(
+            arrow_u_copy.animate
+                .shift(arrow_uv["dot"].get_center() - arrow_u["dot"].get_center()),
+            arrow_v_copy.animate
+                .shift(arrow_uv["dot"].get_center() - arrow_v["dot"].get_center()),
+        )
+        about_point = arrow_v_copy["dot"].get_center()
+        self.play(
+            Rotate(arrow_v_copy, u_angle, OUT, about_point)
+        )
+        arrow_and_re_line = VGroup(arrow_v_copy["arrow"], arrow_v_copy["line_re"])
+        self.play(
+            arrow_and_re_line.animate.scale(u_modulus, about_point=about_point)
+        )
+        self.play(FadeOut(arrow_v_copy["line_re"]))
+
+        color_map = {"u":BLUE, "v":YELLOW}
+        label_rotation = Tex("Rotation rule: ")
+        label_scaling = Tex("Scaling rule: ")
+        eq_rotation = MathTex("arg(uv)=arg(u)+arg(v)", tex_to_color_map=color_map)
+        eq_scaling = MathTex("|uv|=|u||v|", tex_to_color_map=color_map)
+        table = VGroup(label_rotation, eq_rotation, label_scaling, eq_scaling).arrange_in_grid(2, 2, (1, .25), LEFT)
+        table.next_to(terms, DOWN, buff=1)
+        self.play(Write(table))
+
 class ComponentTimesI(Scene):
     def construct(self):
         numplane = ComplexPlane().add_coordinates()
@@ -278,22 +343,41 @@ class ArbitraryTimesI(Scene):
             direction=normalize(LEFT + UP),
             distance=1, z_index=1 )
 
-        numplane = ComplexPlane().add_coordinates()
+        numplane = ComplexPlane().add_coordinates().set_opacity(0.5)
+        dot = Dot(z_index=1)
+
+        eq_i_abi = MathTex(*"i ( a + bi )".split(" "), tex_to_color_map=color_map)
+        eq_i_abi.add(eq_i_abi[0].copy())
+        eq_i_abi.shift(DOWN)
+
+        eq_i_abi_2 = MathTex(*"a i + ( bi ) i".split(" "), tex_to_color_map=color_map).move_to(eq_i_abi)
+        eq_box_i_abi = VGroup(
+            SurroundingRectangle(eq_i_abi_2, color=WHITE).set_fill(BLACK, 1),
+            eq_i_abi
+        )
 
         arrow_re = arrow_re_ref.copy()
         arrow_im = arrow_im_ref.copy()
 
-        self.add(numplane)
+        self.add(numplane, dot)
         self.play( dot_v.create_animation() )
         self.play( GrowArrow(arrow_re) )
         self.play( GrowArrow(arrow_im) )
+        self.play(Write(eq_box_i_abi))
 
         self.wait()
 
+        eq_box_i_abi.remove(eq_i_abi)
+        self.play( TransformMatchingTex(
+            eq_i_abi,
+            eq_i_abi_2,
+            path_arc=-90*DEGREES
+        ) )
         self.play(
             Rotate( arrow_re, PI / 2, about_point=arrow_re.get_start() ),
             Rotate( arrow_im, PI / 2, about_point=arrow_im.get_start() )
         )
+
         self.play( arrow_im.animate.shift( arrow_re.get_end() - arrow_im.get_start() ) )
         self.play( FadeIn( arrow_re_ref, arrow_im_ref ) )
         self.play( dot_iv.create_animation() )
@@ -302,6 +386,7 @@ class ArbitraryTimesI(Scene):
         for step in steps:
             self.play( animate_replace_tex( dot_iv.label, step, color_map, ORIGIN ) )
             self.wait()
+        self.play(FadeOut(eq_box_i_abi, eq_i_abi_2), run_time=0.5)
 
         self.play(
             Transform( arrow_re, arrow_re_ref ),
@@ -321,58 +406,22 @@ class ArbitraryTimesI(Scene):
 
         self.play( Create(right_angle) )
         
-        step_tex = MathTex("(a, b) \cdot (-b, a)", tex_to_color_map=color_map).move_to(ORIGIN + DOWN * 2)
+        step_tex = MathTex(*"( a , b ) \cdot ( - b , a )".split(" "), tex_to_color_map=color_map).move_to(ORIGIN + DOWN * 2)
+        set_transform_key(step_tex[3], "b1")
         step_rect = SurroundingRectangle(step_tex, color=WHITE).set_fill(BLACK, opacity=1)
         step = VGroup(step_rect, step_tex)
         self.play( Write(step) )
         self.wait()
-        self.play( animate_replace_tex(step_tex, "-ab + ba", color_map, ORIGIN) )
+        # self.play( animate_replace_tex(step_tex, "-ab + ba", color_map, ORIGIN) )
+        step_tex2 = MathTex(*"- a b + b a".split(" "), tex_to_color_map=color_map).move_to(step_tex)
+        set_transform_key(step_tex2[-2], "b1")
+        self.play( TransformMatchingKeyTex(step_tex, step_tex2, path_arc=-90*DEGREES ) )
         self.wait()
-        self.play( animate_replace_tex(step_tex, "0", color_map, ORIGIN) )
+        self.play( animate_replace_tex(step_tex2, "0", color_map, ORIGIN) )
 
         self.wait()
 
-class VActingOnI(Scene):
-    def construct(self):
-        numplane = ComplexPlane().set_opacity(.25).set_z_index(-100)
-        dot_origin = Dot(ORIGIN)
-
-        self.add(numplane, dot_origin)
-
-        v_angle = PI / 4
-        v = np.array([ math.cos(v_angle), math.sin(v_angle), 0 ])
-        
-        arrow_i = LabeledArrow( Arrow(ORIGIN, ci, buff=0, stroke_width=3), "i" )
-        arrow_v = LabeledArrow( Arrow(ORIGIN, v, buff=0, stroke_width=3), "v" )
-
-        line_re = Line(ORIGIN, c1)
-        angle_i = Angle(line_re, arrow_i.arrow, radius=.5, elbow=True)
-        angle_v = Angle(line_re, arrow_v.arrow, radius=.5)
-
-        comparison_i = get_angle_comparison(arrow_i.arrow, v_angle, BLUE)
-        comparison_v = get_angle_comparison(arrow_v.arrow, PI / 2, BLUE)
-
-        self.play( FadeIn(arrow_v, angle_v) )
-        self.add( comparison_v["arrow"] )
-        self.play( 
-            FadeOut(arrow_v.label),
-            Rotate( arrow_v.arrow, PI / 2, about_point=ORIGIN ),
-            Create(comparison_v["angle"])
-        )
-        dot_iv = ExternalLabeledDot(Dot(arrow_v.arrow.get_end()), "iv", aligned_edge=RIGHT).set_z_index(10)
-        self.play( dot_iv.create_animation() )
-        self.play( FadeOut(arrow_v.arrow, angle_v, comparison_v) )
-
-        self.play( FadeIn(arrow_i, angle_i))
-        self.add( comparison_i["arrow"] )
-        self.play(
-            FadeOut(arrow_i.label),
-            Rotate( arrow_i.arrow, v_angle, about_point=ORIGIN ),
-            Create(comparison_i["angle"])
-        )
-        self.play( FadeOut(arrow_i.arrow, angle_i, comparison_i) )
-
-class ArbitraryTimesArbitrary2(Scene):
+class ArbitraryTimesArbitrary2(MovingCameraScene):
     def construct(self):
         color_map = { 
             "a": RED, "b": GREEN,
@@ -396,17 +445,17 @@ class ArbitraryTimesArbitrary2(Scene):
         arrow_u = LabeledArrow( 
             Arrow( ORIGIN, u, buff=0, color=BLUE ),
             MathTex("u", color=BLUE),
-            perp_distance=-0.25, distance=0, alpha=0.5
+            perp_distance=-0.25, distance=0, alpha=0.75
         ).set_z_index(1)
         arrow_iu = LabeledArrow(
             Arrow( ORIGIN, iu, buff=0, color=BLUE_E ),
             MathTex("iu", color=BLUE_E),
-            perp_distance=0.25, distance=0, alpha=0.5
+            perp_distance=0.35, distance=0, alpha=0.75
         ).set_z_index(1)
 
         line_re = Line(ORIGIN, RIGHT)
         line_u = Line(ORIGIN, u * 10, color=BLUE )
-        angle_u = always_redraw( lambda: Angle( line_re, arrow_u.arrow, radius=1, color=BLUE ) )
+        angle_u = always_redraw( lambda: Angle( line_re, arrow_u.arrow, color=BLUE ) )
 
         self.play( arrow_u.grow_animation() )
 
@@ -423,10 +472,14 @@ class ArbitraryTimesArbitrary2(Scene):
 
         rotation_group = VGroup(arrow_u.arrow, arrow_iu.arrow, numplane_u)
 
+        # Demonstrate rotation of plane by u
         for _delta_angle in [ PI / 4, -PI / 4 -u_angle, u_angle ]:
             self.play( Rotate( rotation_group, _delta_angle, about_point=ORIGIN ), run_time=1.5 )
-
-        self.wait(1)
+        self.wait()
+        # Demonstrate scaling of plane by u
+        self.play( rotation_group.animate.scale(0.5, about_point=ORIGIN) )
+        self.play( rotation_group.animate.scale(2, about_point=ORIGIN) )
+        self.wait()
 
         arrow_au = LabeledArrow(
             Arrow( ORIGIN, u * v[0], buff=0, color=RED ),
@@ -450,7 +503,7 @@ class ArbitraryTimesArbitrary2(Scene):
         self.play( dot_uv.create_animation() )
 
         arrow_uv = Arrow( ORIGIN, dot_uv.dot.get_center(), color=YELLOW, buff=0 )
-        angle_uv = Angle( arrow_u.arrow, arrow_uv, radius=1, color=YELLOW )
+        angle_uv = Angle( arrow_u.arrow, arrow_uv, color=YELLOW )
 
         self.play( GrowArrow(arrow_uv), Create(angle_uv) )
         self.wait()
@@ -459,10 +512,6 @@ class ArbitraryTimesArbitrary2(Scene):
         self.wait()
 
         rotation_group.add( dot_uv.dot, arrow_uv, angle_uv, arrow_au.arrow, arrow_biu.arrow )
-
-        # for _delta_angle in [ PI / 8, -PI / 8 ]:
-        #     self.play( Rotate( rotation_group, _delta_angle, about_point=ORIGIN ), run_time=1.5 )
-        # self.wait(0.5)
 
         self.play( 
             Rotate( rotation_group, -u_angle, about_point=ORIGIN ),
@@ -481,10 +530,10 @@ class ArbitraryTimesArbitrary2(Scene):
         )
         self.wait(.5)
 
-        angle_u.clear_updaters()
-        rotation_group.add(angle_u)
-        self.play( rotation_group.animate.scale(0.5, about_point=ORIGIN) )
-        self.play( rotation_group.animate.scale(2, about_point=ORIGIN) )
+        # angle_u.clear_updaters()
+        # rotation_group.add(angle_u)
+        # self.play( rotation_group.animate.scale(0.5, about_point=ORIGIN) )
+        # self.play( rotation_group.animate.scale(2, about_point=ORIGIN) )
 
         self.play( animate_replace_tex( dot_uv.label, "uv", color_map ) )
         self.wait()
@@ -492,8 +541,8 @@ class ArbitraryTimesArbitrary2(Scene):
         self.play(  FadeOut( arrow_iu, numplane_u ) )
 
         eq_polar_product = MathTex(
-            r"(r_{u}, \theta_{u})(r_{v}, \theta_{v}) = (r_{u}r_{v}, \theta_{u} + \theta_{v})",
-            tex_to_color_map=color_map)
+            r"arg(uv) &= arg(u) + arg(v) \\ |uv| &= |u||v|",
+            tex_to_color_map={"u":BLUE, "v":YELLOW})
         eq_polar_product.to_corner(UL)
         self.play( Write(eq_polar_product) )
 
