@@ -1,0 +1,1 @@
+- Rewrite DualPlanes part in terms of multiplication by arbitrary unit complex number, not just i. This avoids an unecessary generalization step.

@@ -1,3 +1,4 @@
+import cmath
 import math
 from manim import *
 from manim.utils.space_ops import ( 
@@ -7,43 +8,66 @@ from manim.utils.space_ops import (
     quaternion_conjugate as qconj
 )
 import numpy as np
+from ComplexArrow import ComplexArrow, ComplexProduct
 
 from ExternalLabeledDot import ExternalLabeledDot
 from LabeledArrow import LabeledArrow
 from TransformMatchingKeyTex import TransformMatchingKeyTex, set_transform_key
 from mathutils import clamp, rotate_cc, rotate_cw
-from utils import angle_label_pos, animate_replace_tex
+from utils import angle_label_pos, animate_arc_to, animate_replace_tex
 
 c1 = np.array([1, 0, 0])
 ci = np.array([0, 1, 0])
 
-def comp2vec(c: complex):
-    return np.array([c.real, c.imag, 0])
-def imexp(imag: float):
-    return math.cos(imag) + 1j * math.sin(imag)
-
-blank_axes = { "include_ticks": False }
+blank_axis = { "include_ticks": False }
 
 def get_shift( mobj, other ):
     return other.get_center() - mobj.get_center()
 def eq_shift( eq: MathTex, other: MathTex ):
     return get_shift( eq.get_part_by_tex("="), other.get_part_by_tex("=") ) * RIGHT
-def align_eq(eq: MathTex, other: MathTex):
-    eq.next_to(other, DOWN)
-    eq.shift( eq_shift(eq, other) )
+def align_eqs(eq: MathTex, *others: MathTex):
+    for other in others:
+        other.shift( eq_shift(other, eq) )
 
 class Intro(ThreeDScene):
     def construct(self):
+        title = Tex("Imaginary Numbers").to_corner(UL)
+        self.play(Write(title))
+
         # Introduce definition
+        eqn0 = MathTex("\sqrt{-x}", "=", "\sqrt{", "-1", "\cdot", "x", "}")
+        eqn0b = MathTex("\sqrt{-x}", "=", "\sqrt{", "-1", "}", "\sqrt{", "x", "}")
+        eqn0c = MathTex("\sqrt{-x}", "=", "\sqrt{-1}", "\sqrt{x}")
+        eqn0d = MathTex("\sqrt{-x}", "=", "i", "\sqrt{x}")
         eqn1 = MathTex( "i", "=", "\sqrt{-1}" )
         eqn2 = MathTex( "i^2", "=", "\sqrt{", "-1", "}^2" )
         eqn2b = MathTex( "i^2", "=", "-1" )
-        align_eq(eqn2, eqn1)
-        align_eq(eqn2b, eqn1)
-        eqns = VGroup(eqn1, eqn2, eqn2b).move_to(ORIGIN)
-        self.play( Write(eqn1[0]) )
+
+        eqn1.next_to(eqn0, DOWN)
+        eqn2.next_to(eqn1, DOWN)
+        eqn0b.move_to(eqn0)
+        eqn0c.move_to(eqn0)
+        eqn0d.move_to(eqn0)
+        eqn2b.move_to(eqn2)
+
+        eqns = VGroup(eqn0, eqn0b, eqn0c, eqn0d, eqn1, eqn2, eqn2b).move_to(ORIGIN)
+        align_eqs(*eqns)
+
+        self.play( Write(eqn0[0]) )
         self.wait()
-        self.play( Write( VGroup( *eqn1[1:] ) ) )
+        self.play( Write( VGroup( *eqn0[1:] ) ) )
+
+        eqns.remove(eqn0)
+        self.play( TransformMatchingTex( eqn0, eqn0b ) )
+        self.wait()
+        eqns.remove(eqn0b)
+        self.play( TransformMatchingTex( eqn0b, eqn0c ), run_time=0.01 )
+
+        self.play( Write(eqn1) )
+
+        eqns.remove(eqn0c)
+        self.play( TransformMatchingTex( eqn0c, eqn0d ) )
+        
         self.play( FadeIn( eqn2, shift=DOWN ) )
         eqns.remove(eqn2)
         self.play( TransformMatchingTex( eqn2, eqn2b ) )
@@ -135,16 +159,22 @@ class Intro(ThreeDScene):
 
 class ComplexNumbers(Scene):
     def construct(self):
+        title = Tex("Complex Numbers").to_corner(UL)
+        self.play(Write(title))
+
         color_map = { 
             "a": RED, "b": GREEN,
             "arg": WHITE,
         }
         tex_config = { "tex_to_color_map": color_map }
-        axes = Axes( x_axis_config=blank_axes, y_axis_config=blank_axes, x_length=20, y_length=10, tips=False ).set_z_index(-2)
-        numplane = ComplexPlane().set_z_index(-1)
-        numplane.get_coordinate_labels()
+        axes = Axes( x_axis_config=blank_axis, y_axis_config=blank_axis, x_length=20, y_length=10, tips=False ).set_z_index(-2)
+        numplane = ComplexPlane()
+        numplane.set_z_index(-1).get_coordinate_labels()
         coords = VGroup( numplane.get_coordinate_labels(), numplane.get_coordinate_labels(0) )
         self.play( Create(axes), Create(coords) )
+        self.wait()
+
+        self.play(Create(numplane))
         self.wait()
 
         # Introduce a + bi
@@ -165,7 +195,7 @@ class ComplexNumbers(Scene):
         self.play( GrowArrow(arrow_v) )
 
         background = VGroup(coords, axes.get_axis(1))
-        self.play(FadeOut(arrow_a, arrow_b), background.animate.set_opacity(0.125))
+        self.play(FadeOut(arrow_a, arrow_b), FadeOut(numplane), background.animate.set_opacity(0.125))
         
         # Define arg and modulus
         brace = Brace(arrow_v, direction=arrow_v.copy().rotate(PI/2).get_unit_vector() )
@@ -186,91 +216,192 @@ class ComplexNumbers(Scene):
         self.play(animate_replace_tex(angle_tex, arg_tex))
         self.wait()
 
-        self.play( FadeOut(angle_tex, brace, brace_tex),
-            FadeIn(arrow_a, arrow_b), background.animate.set_opacity(1) )
+        self.play( 
+            # FadeOut(angle_tex, brace, brace_tex),
+            FadeOut(brace, brace_tex),
+            FadeIn(arrow_a, arrow_b), axes.get_axis(1).animate.set_opacity(1),
+            animate_replace_tex(angle_tex, "\\theta")
+        )
+        self.wait()
 
         # Define conjugate
-        conjugate_parts = VGroup(arrow_b.copy(), arrow_v.copy(), angle_conj := angle.copy())
-        self.add(conjugate_parts)
-        self.play(Rotate(conjugate_parts, PI, RIGHT, ORIGIN))
+        self.play( FadeOut(title) )
+        title = Tex("Conjugate").to_corner(UL)
+        self.play( Write(title) )
         self.wait()
+
+        conjugate_parts = VGroup(
+            arrow_b_conj := arrow_b.copy(), 
+            arrow_v_conj := arrow_v.copy(), 
+            angle_conj   := angle.copy()
+        )
+        self.add(conjugate_parts)
+        
+        self.play(Rotate(conjugate_parts, PI, RIGHT, ORIGIN))
+        self.play(VGroup(arrow_v_conj, angle_conj).animate.set_color(BLUE))
+        self.wait()
+        
         dot_conjugate = ExternalLabeledDot(Dot(v*RIGHT -v*UP), MathTex("a - bi", **tex_config), direction=DR)
+        dot_conjugate.set_z_index(-1)
         self.play( dot_conjugate.create_animation() )
         self.wait()
 
-        eq_conjugate = MathTex("\\overline{a+bi}=a-bi").to_corner(UL)
+        eq_conjugate = MathTex("\\overline{a+bi}=a-bi").next_to(title, DOWN, aligned_edge=LEFT)
         self.play(Write(eq_conjugate))
         self.wait()
 
         # Arg of conjugate z is negative arg z
-        self.play(Indicate(angle_conj), run_time=2)
+        angle_tex_conj = MathTex("-\\theta", color=BLUE).move_to(angle_tex.get_center() * np.array([1, -1, 1]))
+        self.play(Write(angle_tex_conj))
         eq_conjugate_arg = MathTex("arg(\\overline{z}) = -arg(z)").next_to(eq_conjugate, DOWN, aligned_edge=LEFT)
         self.play(Write(eq_conjugate_arg))
+
+        indices = index_labels(eq_conjugate)
+        self.add(indices)
+
+        self.wait()
+
+class ComplexMultiplication(Scene):
+    def construct(self):
+        color_map = {"a":RED, "b":GREEN, "c":RED, "d":GREEN}
+        steps = [
+            "( a + b i ) ( c + d i )",
+            "a c + b d i^2 + a d i + b c i",
+            "a c - b d + a d i + b c i",
+            "( a c - b d ) + ( a d + b c ) i",
+        ]
+        steps = VGroup(*map(lambda x: MathTex(*x.split(" "), tex_to_color_map=color_map), steps))
+        self.play(Write(steps[0]))
+        self.wait()
+        prev_step = steps[0]
+        key_map = {"i":"i^2"}
+        for step in steps[1:-1]:
+            self.play(TransformMatchingTex(prev_step, step, path_arc=-90*DEGREES, key_map=key_map), run_time=2)
+            prev_step = step
+        eq_prefix = MathTex("(a+bi)(c+di) =", tex_to_color_map=color_map)
+        eq_prefix.next_to(prev_step, LEFT).set_opacity(0)
+        self.play( VGroup(eq_prefix, prev_step ).animate.move_to(ORIGIN) )
+        self.play(Write(eq_prefix.set_opacity(1)))
 
 class RotationPreview(Scene):
     def construct(self):
         u_angle = PI / 4
-        u_modulus = 1.3
-        uc = (math.cos(u_angle) + 1j * math.sin(u_angle)) * u_modulus
-        u = comp2vec(uc)
-        vc = 2 + 1j
-        v = comp2vec(vc)
-        uvc = uc * vc
-        uv = comp2vec(uvc)
-
-        def get_arrow(v, color):
-            arrow = Arrow(ORIGIN, v, buff=0, color=color)
-            dot = Dot(z_index=1)
-            line_re = Line(ORIGIN, RIGHT, color=color)
-            angle = Angle( line_re, arrow, color=color, z_index=-1)
-            return VDict({ "arrow": arrow, "line_re": line_re, "dot": dot, "angle": angle })
-
-        arrow_u = get_arrow(u, BLUE)
-        arrow_v = get_arrow(v, YELLOW)
-        arrow_uv = get_arrow(uv, GREEN)
+        # u_modulus = 1.3
+        u_modulus = 0.8
+        u = (math.cos(u_angle) + 1j * math.sin(u_angle)) * u_modulus
+        v = 2 + 1j
 
         title = Tex("Complex Multiplication").to_corner(UL)
         self.add(title)
-
-        terms = VGroup(arrow_u, MathTex("\\times"), arrow_v, MathTex("="), arrow_uv)
-        self.add(terms)
-        terms.arrange_in_grid(1, 5, buff=1, cell_alignment=DOWN)
-        terms[3].move_to(terms[1], coor_mask=UP) # Fix equal sign to line up with plus sign.
-        terms.move_to(ORIGIN + UP)
-
-        arrow_u_copy = arrow_u.copy()
-        arrow_v_copy = arrow_v.copy()
-
-        self.play(
-            arrow_u_copy.animate
-                .shift(arrow_uv["dot"].get_center() - arrow_u["dot"].get_center()),
-            arrow_v_copy.animate
-                .shift(arrow_uv["dot"].get_center() - arrow_v["dot"].get_center()),
-        )
-        about_point = arrow_v_copy["dot"].get_center()
-        self.play(
-            Rotate(arrow_v_copy, u_angle, OUT, about_point)
-        )
-        arrow_and_re_line = VGroup(arrow_v_copy["arrow"], arrow_v_copy["line_re"])
-        self.play(
-            arrow_and_re_line.animate.scale(u_modulus, about_point=about_point)
-        )
-        self.play(FadeOut(arrow_v_copy["line_re"]))
+        
+        cprod = ComplexProduct(u, v)
+        cprod.move_to(ORIGIN + UP)
+        self.play(FadeIn(cprod))
+        self.wait()
+        cprod.animate(self)
 
         color_map = {"u":BLUE, "v":YELLOW}
         label_rotation = Tex("Rotation rule: ")
         label_scaling = Tex("Scaling rule: ")
-        eq_rotation = MathTex("arg(uv)=arg(u)+arg(v)", tex_to_color_map=color_map)
-        eq_scaling = MathTex("|uv|=|u||v|", tex_to_color_map=color_map)
-        table = VGroup(label_rotation, eq_rotation, label_scaling, eq_scaling).arrange_in_grid(2, 2, (1, .25), LEFT)
-        table.next_to(terms, DOWN, buff=1)
+        label_commutativity = Tex("Commutativity: ")
+        eq_rotation = MathTex(*"arg(uv) = arg(u)+arg(v)".split(" "), tex_to_color_map=color_map)
+        eq_scaling = MathTex(*"|uv| = |u||v|".split(" "), tex_to_color_map=color_map)
+        eq_commutativity = MathTex(*"uv = vu".split(" "), tex_to_color_map=color_map)
+
+        table = VGroup(
+            label_rotation, eq_rotation,
+            label_scaling, eq_scaling,
+            label_commutativity, eq_commutativity
+        )
+        table.arrange_in_grid(len(table) // 2, 2, (1, .25), LEFT)
+
+        row_commutativity = VGroup(label_commutativity, eq_commutativity)
+        row_commutativity.set_opacity(0)
+
+        align_eqs(eq_rotation, eq_scaling, eq_commutativity)
+        table.next_to(cprod.equation, DOWN, buff=1)
         self.play(Write(table))
+        self.wait()
+
+        row_commutativity.set_opacity(1)
+        self.play(Write(row_commutativity))
+        self.wait()
+
+        # operations = [ VGroup(*eq[5:]) for eq in [eq_rotation, eq_scaling] ]
+        # rects = [ SurroundingRectangle(op) for op in operations ]
+        # self.play(
+        #     LaggedStart( *[Create(rect) for rect in rects], lag_ratio=0.1 ),
+        #     run_time=1 )
+        # self.wait()
+        # self.play(
+        #     LaggedStart(*[FadeOut(rect) for rect in rects], lag_ratio=0.1),
+        #     run_tim=1 )
+
+        cprod2 = ComplexProduct(v, u, u_color=YELLOW, v_color=BLUE)
+        cprod2.move_to(ORIGIN + UP)
+        self.play( 
+            animate_arc_to( cprod.arrow_v, cprod2.arrow_u ),
+            animate_arc_to( cprod.arrow_u, cprod2.arrow_v ),
+            animate_arc_to( cprod.tex_times, cprod2.tex_times ),
+        )
+        self.play(FadeOut(cprod), FadeIn(cprod2), run_time=0.5)
+        self.wait()
+        cprod2.animate(self)
 
 class ComponentTimesI(Scene):
     def construct(self):
         numplane = ComplexPlane().add_coordinates()
 
         points = [c1, ci, -c1, -ci]
+
+        steps = [
+            x.split(";") for x in [
+                "1",
+                "1 i;i",
+                "i i; i ^2; - 1",
+                "- 1 i; - i",
+                "- i i; - i ^2; - ( - 1 ); 1",
+            ]
+        ]
+        
+        def get_step_player(step_group):
+            previous_line = None
+            self.add(step_group)
+
+            for step in steps:
+                newline = True
+                for substep in step:
+                    tex = MathTex(*substep.split(" "))
+                    if previous_line == None:
+                        tex.to_corner(UL).shift(RIGHT)
+                        self.play(Write(tex))
+                    else:
+                        extra_anims = []
+                        if newline:
+                            tex.next_to(previous_line, DOWN, aligned_edge=LEFT)
+                            hbuff = LEFT * 0.5
+                            vbuff = DOWN * 0.1
+                            arc = CurvedArrow(
+                                previous_line.get_edge_center(LEFT)+hbuff+vbuff, 
+                                tex.get_edge_center(LEFT)+hbuff-vbuff,
+                                tip_length=0.12, color=BLUE
+                            )
+                            label = MathTex("i", color=BLUE).next_to(arc.get_center(), LEFT)
+                            extra_anims.append(Create(arc))
+                            extra_anims.append(Write(label))
+                            step_group.add(arc, label)
+                        else:
+                            tex.move_to(previous_line, aligned_edge=LEFT)
+                        self.play(
+                            TransformMatchingTex(previous_line, tex, shift=DOWN),
+                            *extra_anims
+                        )
+                    self.wait(.25)
+                    previous_line = tex
+                    newline = False
+                step_group.add(previous_line.copy())
+                self.remove(previous_line)
+                yield
 
         def get_dots_and_arcs(scale, get_label):
             def labeled_dot(point, index):
@@ -299,19 +430,27 @@ class ComponentTimesI(Scene):
 
         self.play( Create(numplane) )
 
-        self.play(
-            numplane.coordinate_labels.animate.set_opacity(.25),
-            numplane.animate.set_opacity(.25),
-            FadeIn(dots[0])
-        )
+        # Animate first cycle
+        step_group = VGroup()
+        step_player = get_step_player(step_group)
         arrow = Arrow(ORIGIN, c1, color=RED, buff=0, z_index=1)
+        self.play(
+            numplane.animate.set_opacity(.25),
+            FadeIn(dots[0], arrow)
+        )
+        step_player.__next__()
+        self.wait()
         for i in range(3):
+            step_player.__next__()
             self.play( FadeIn(dots[i + 1]), Rotate(arrow, PI / 2, about_point=ORIGIN), FadeIn(arcs[i]))
-            self.wait(.5)
+            self.wait()
+        step_player.__next__()
         self.play(FadeIn(arcs[3]), Rotate(arrow, PI / 2, about_point=ORIGIN))
+        self.wait()
 
-        self.play(FadeOut(arrow))
+        self.play(FadeOut(arrow, step_group))
 
+        # Scaling cycle
         scale_tracker = ValueTracker(1)
         def get_loop():
             def get_label(p, i):
@@ -323,6 +462,14 @@ class ComponentTimesI(Scene):
         self.play( ReplacementTransform(VGroup(dots, arcs), loop) )
         self.play(scale_tracker.animate.set_value(3), run_time=3)
         self.wait()
+
+        self.play(numplane.get_axes().animate.set_opacity(1), run_time=0.5)
+        self.play(Indicate(numplane.get_axes()))
+        self.wait()
+
+        self.play(FadeOut(loop))
+        self.play(numplane.animate.set_opacity(1), run_time=0.5)
+        self.play(Indicate(numplane, 1))
 
 class ArbitraryTimesI(Scene):
     def construct(self):
@@ -463,7 +610,7 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
         self.play( Create( angle_u ) )
         angle_u.resume_updating()
 
-        self.wait(2)
+        self.wait(1)
         self.play( arrow_iu.grow_animation() )
         # for arrow in [arrow_u, arrow_iu]:
         self.wait(0.5)
@@ -530,10 +677,11 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
         )
         self.wait(.5)
 
-        # angle_u.clear_updaters()
-        # rotation_group.add(angle_u)
-        # self.play( rotation_group.animate.scale(0.5, about_point=ORIGIN) )
-        # self.play( rotation_group.animate.scale(2, about_point=ORIGIN) )
+        angle_u.clear_updaters()
+        rotation_group.add(angle_u)
+        self.play( rotation_group.animate.scale(0.5, about_point=ORIGIN) )
+        self.play( rotation_group.animate.scale(2, about_point=ORIGIN) )
+        self.wait()
 
         self.play( animate_replace_tex( dot_uv.label, "uv", color_map ) )
         self.wait()
@@ -546,10 +694,69 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
         eq_polar_product.to_corner(UL)
         self.play( Write(eq_polar_product) )
 
-def get_angle_comparison(arrow_ref, angle, color=WHITE):
-    arrow_base = arrow_ref.copy()
-    arrow_base.set_opacity(0.5)
-    arrow_rot = arrow_ref.copy().rotate(angle, about_point=arrow_ref.get_start())
-    elbow = math.fabs(math.fabs(angle) - PI / 2) < 0.00001
-    angle = Angle(arrow_base, arrow_rot, radius=0.5, elbow=elbow, color=color)
-    return VDict([ ("arrow", arrow_base), ("angle", angle) ])#.set_z_index(-1)
+class UnitComplexNumbers(Scene):
+    def construct(self):
+        numplane = ComplexPlane()
+        numplane.add_coordinates()
+        numplane.set_opacity(0.25)
+        numplane.set_z_index(-10)
+        self.add(numplane)
+
+        title = Tex("Pure Rotations:")
+        title.to_corner(UL)
+        self.add(title[0])
+
+        tex_mod_equals_one = MathTex("|u| = 1")
+        tex_mod_equals_one.next_to(title, DOWN, 0.5, aligned_edge=LEFT)
+        self.play(Write(tex_mod_equals_one))
+        self.wait()
+
+        circle = Circle(1, BLUE)
+        circle.set_z_index(-1)
+        self.play(Create(circle))
+
+        line_re = Line(ORIGIN, RIGHT)
+        line_re.set_z_index(-2)
+        self.play(Create(line_re))
+
+        theta_tracker = ValueTracker(45*DEGREES)
+        def get_dot(label_text, sign=1):
+            def func():
+                theta = theta_tracker.get_value() * sign
+                u = np.cos(theta) * RIGHT + np.sin(theta) * UP
+                dot = Dot(u)
+                line = Line(ORIGIN, u)
+                line_re = Line(ORIGIN, RIGHT)
+                angle = Angle(line_re, line, radius=0.25, other_angle=theta<0)
+                theta_text = "\\theta" if sign > 0 else "-\\theta"
+                label_theta = MathTex(theta_text).scale(.8).move_to(angle.get_midpoint() * 2)
+                label = MathTex(label_text).next_to(dot, u, buff=0.1)
+                result = VDict({
+                    "dot": dot, "line": line, "angle": angle, 
+                    "label_theta": label_theta, "label": label
+                })
+                return result
+            return func
+        
+        dot_u = always_redraw(get_dot("u"))
+
+        self.play(Create(dot_u))
+        self.play(theta_tracker.animate.set_value(135*DEGREES))
+
+        tex_form = MathTex("u = cos(\\theta) + i sin(\\theta)", tex_to_color_map={"cos":RED, "sin":GREEN})
+        tex_form.next_to(tex_mod_equals_one, DOWN, aligned_edge=LEFT)
+        self.play(Write(tex_form))
+
+        dot_uconj = always_redraw(get_dot("\\overline{u}", -1))
+        self.play(Create(dot_uconj))
+        self.wait()
+
+        self.play(theta_tracker.animate.set_value(75*DEGREES))
+
+        tex_inverse = MathTex("u^{-1}", "= \\overline{u}")
+        tex_inverse.next_to(tex_form, DOWN, aligned_edge=LEFT)
+        self.play(Write(tex_inverse))
+
+        tex_inverse2 = MathTex("u \\overline{u} = 1")
+        tex_inverse2.next_to(tex_inverse, DOWN, aligned_edge=LEFT)
+        self.play(Write(tex_inverse2))

@@ -1,6 +1,3 @@
-import imp
-from re import M
-from unicodedata import numeric
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
@@ -19,17 +16,21 @@ ihatn = "-" + ihat
 jhatn = "-" + jhat
 khatn = "-" + khat
 
+MYPINK = "#ff6181"
+
 color_map = { 
+    "\\overline{q}": MYPINK,
     ihat: RED, jhat: GREEN, khat: BLUE,
     "i": RED, "j": GREEN, "k": BLUE, "b": WHITE,
+    "q": MYPINK,
     "\\times": WHITE,
 }
 
 def math_tex(*args, **kwargs):
     return MathTex(*args, tex_to_color_map=color_map, **kwargs)
 
-def replace_tex(tex, text):
-    return animate_replace_tex(tex, text, tex_to_color_map=color_map)
+def replace_tex(tex, text, **kwargs):
+    return animate_replace_tex(tex, text, tex_to_color_map=color_map, **kwargs)
 
 def vec_cross_table(tex_to_color_map=None):
     ih, jh, kh = ihat, jhat, khat
@@ -171,8 +172,6 @@ class ThreeD(ThreeDScene):
         def indicate_arrow(arrow, tex):
             return AnimationGroup( Indicate(arrow, scale_factor=1), Indicate(tex) )
 
-
-        self.play( indicate_arrow(arrow_i, tex_i) )
         self.wait()
         numplane.set_opacity(.25)
         self.play( 
@@ -181,6 +180,8 @@ class ThreeD(ThreeDScene):
             # GrowFromPoint(plane, ORIGIN) )
             FadeIn(numplane)
         )
+        self.play( indicate_arrow(arrow_i, tex_i) )
+        self.wait()
 
         table = pure_quat_times_table(color_map).scale(0.5).to_edge(LEFT)
         table_background = SurroundingRectangle( table, color=BLACK, fill_color=BLACK, fill_opacity=1, buff=0 )
@@ -232,8 +233,22 @@ class ThreeD(ThreeDScene):
 
             self.play( FadeOut( *arcs, i_rect ) )
         
+        tex_mult_side = Tex("Left multiplication: $iv$").to_corner(UL)
+        self.add_fixed_in_frame_mobjects(tex_mult_side)
+        self.play(Write(tex_mult_side))
         show_sided_i_multiplication("left")
+        self.play(FadeOut(tex_mult_side))
+        tex_mult_side = Tex("Right multiplication: $vi$").to_corner(UL)
+        self.add_fixed_in_frame_mobjects(tex_mult_side)
+        self.play(Write(tex_mult_side))
         show_sided_i_multiplication("right")
+        self.play(FadeOut(tex_mult_side))
+
+        self.wait()
+
+        rect = SurroundingRectangle(table.get_entries((2, 2)), color=RED)
+        self.add_fixed_in_frame_mobjects(rect)
+        self.play( Create(rect) )
 
         self.wait()
 
@@ -241,92 +256,206 @@ class DualPlanes(Scene):
     def construct(self):
 
         def make_plane(x_color, y_color, x_label, y_label ):
+            plane_group = VDict()
+
             plane_range = [-3, +3]
             axes = Axes(x_range=plane_range, y_range=plane_range,
                 x_length=None, y_length=None, tips=False)
             x_axis, y_axis = axes.get_axes()
             x_axis.set_fill(x_color).set_stroke(x_color)
             y_axis.set_fill(y_color).set_stroke(y_color)
+            plane_group["axes"] = axes
 
+            labels = VGroup()
+            plane_group["labels"] = labels
             for label, color, axis in [ ( x_label, x_color, RIGHT ), ( y_label, y_color, UP ) ]:
-                # x, y, z = axis
-                # offset = np.array([ -y, -x, z ])
                 offset = np.cross(axis, OUT)
-                axes.add( MathTex( label, color=color )
+                labels.add( MathTex( label, color=color )
                     .scale(1/2)
                     .next_to( axes.c2p(*axis), offset ) )
 
-            # axes.add( SurroundingRectangle(
-            #     axes, buff=0.1, color=WHITE,
-            #     fill_color=BLACK, fill_opacity=1,
-            #     z_index=-1 ) )
-            axes.add( Circle(plane_range[1]+.1, color=WHITE,
+            circle = Circle(
+                plane_range[1]+.1, color=WHITE,
                 fill_color=BLACK, fill_opacity=1,
-                z_index=-1) )
+                z_index=-1
+            )
+            plane_group["circle"] = circle
 
-            return axes
+            return plane_group
 
         plane_1i = make_plane(WHITE, RED, "1", "i")
         plane_jk = make_plane(BLUE, GREEN, "j", "k")
+        plane_1i["title"] = Tex("$1i$-Plane \n (Complex Plane)").next_to(plane_1i, DOWN, aligned_edge=LEFT)
+        plane_jk["title"] = Tex("$jk$-Plane").next_to(plane_jk, DOWN, aligned_edge=RIGHT)
 
         plane_scale = 2/3
-        for plane, corner in [ (plane_1i, UL), (plane_jk, UR) ]:
+        plane_group = VGroup(plane_1i, plane_jk)
+        plane_group.scale(plane_scale).arrange(buff=1).shift(UP)
+
+        for plane in plane_group:
             self.play( Create(plane) )
-            self.play( plane.animate.scale(plane_scale).to_corner(corner) )
 
         self.wait()
 
-        tex_quat_form = math_tex(*"v = a + bi + cj + dk".split(" "))
-        self.play( Write( tex_quat_form ) )
+        tex_v = math_tex(*"v = a + bi + cj + dk".split(" ")).next_to(plane_group, DOWN)
+        tex_q = MathTex("q", "=cos(\\theta)+", "i", "sin(\\theta)").next_to(tex_v, DOWN)
+        tex_q[0].set_color(MYPINK)
+        tex_q[2].set_color(RED)
+        self.play( Write( tex_v ) )
 
         self.wait()
         
         # Complex and jk components of v.
+        c45 = np.cos(45 * DEGREES)
         arrow_ab, arrow_cd = [
             LabeledArrow(
-                Arrow( plane.c2p(0,0), plane.c2p(*coord), buff=0),
+                Arrow( plane["axes"].c2p(0,0), plane["axes"].c2p(*coord), buff=0),
                 math_tex("v").scale(plane_scale),
-                # distance=.1, aligned_edge=edge
             ) for plane, coord, edge in [ 
-                (plane_1i, (3/5,-4/5), LEFT),
-                (plane_jk, (3/5, 4/5), RIGHT)
+                # (plane_1i, (3/5,-4/5), LEFT), (plane_jk, (3/5, 4/5), RIGHT)
+                # (plane_1i, (c45, c45), LEFT), (plane_jk, (c45, c45), RIGHT)
+                (plane_1i, (0, 1), LEFT), (plane_jk, (c45, c45), RIGHT)
             ]
         ]
 
+        self.play(
+            VGroup(
+                plane_1i["axes"], plane_1i["labels"],
+                plane_jk["axes"], plane_jk["labels"],
+            ).animate.set_opacity(0.25)
+        )
+
         self.play( LaggedStart( 
             arrow_ab.grow_animation(),
-            Circumscribe( tex_matches(tex_quat_form, "a", "i" ) ),
+            Circumscribe( tex_matches(tex_v, "a", "i" ) ),
             lag_ratio=.25 ), run_time=1.5 )
         self.play( LaggedStart(  
             arrow_cd.grow_animation(),
-            Circumscribe( tex_matches(tex_quat_form, "c", "k" ) ),
+            Circumscribe( tex_matches(tex_v, "c", "k" ) ),
             lag_ratio=.25 ), run_time=1.5 )
 
-        self.play(
-            plane_1i.animate.set_opacity(0.25),
-            plane_jk.animate.set_opacity(0.25),
-        )
+        self.play( Write(tex_q) )
 
-        arrows_iv = VGroup(arrow_ab.copy(), arrow_cd.copy())
-        self.add(arrows_iv)
-        self.play( *[
-            AnimationGroup( Rotate( arrow.arrow, PI/2, about_point=arrow.arrow.get_start() ),
-                replace_tex(arrow.label, math_tex("iv").scale(plane_scale) ) )
-            for arrow in arrows_iv
-        ])
+        theta = PI/4
+        origin_ab = arrow_ab.arrow.get_start()
+        origin_cd = arrow_cd.arrow.get_start()
+        arrow_iab = arrow_ab.copy()
+        arrow_abi = arrow_ab.copy()
+        arrow_icd = arrow_cd.copy()
+        arrow_cdi = arrow_cd.copy()
+        self.add(arrow_iab, arrow_abi, arrow_icd, arrow_cdi)
+
+        def add_angle(from_arrow, to_arrow, other_angle: bool):
+            def get_angle():
+                try:
+                    return Angle(from_arrow.arrow, to_arrow.arrow, 
+                        color=MYPINK, radius=0.25, other_angle=other_angle)
+                except:
+                    return VGroup()
+            angle = always_redraw(get_angle)
+            to_arrow.add(angle)
+
+        add_angle(arrow_ab, arrow_iab, False)
+        add_angle(arrow_ab, arrow_abi, False)
+        add_angle(arrow_cd, arrow_icd, False)
+        add_angle(arrow_cd, arrow_cdi, True)
+
+        # Multiply complex-componet on either side.
+        self.play( Rotate(arrow_iab.arrow, theta, about_point=origin_ab),
+            replace_tex(arrow_iab.label, math_tex("qv").scale(plane_scale) ) )
+        self.play( Rotate(arrow_abi.arrow, theta, about_point=origin_ab),
+            replace_tex(arrow_abi.label, math_tex("vq").scale(plane_scale) ),
+            FadeOut( arrow_iab ) )
+        self.play(replace_tex(arrow_abi.label, math_tex("qv, vq").scale(plane_scale) ))
+        self.wait()
+
+        # Multiply jk-component on either side.
+        self.play( Rotate(arrow_icd.arrow, theta, about_point=origin_cd),
+            replace_tex(arrow_icd.label, math_tex("qv").scale(plane_scale) ) )
+        self.play( Rotate(arrow_cdi.arrow, -theta, about_point=origin_cd),
+            replace_tex(arrow_cdi.label, math_tex("vq").scale(plane_scale) ) )
+        self.wait()
+
+        # Vary theta.
+        for d_theta in [PI/6, -PI/6]:
+            self.play(
+                *[
+                    Rotate(arrow.arrow, d_theta, about_point=arrow.arrow.get_start())
+                    for arrow in [arrow_abi, arrow_icd]
+                ],
+                Rotate(arrow_cdi.arrow, -d_theta, about_point=arrow_cdi.arrow.get_start())
+            )
+            self.wait(0.25)
+        self.wait()
+
+        self.play( FadeOut( arrow_icd, arrow_abi, arrow_cdi ) )
 
         self.wait()
 
-        arrow_abi = arrow_ab.copy()
-        arrow_cdi = arrow_cd.copy()
-        self.add(arrow_abi, arrow_cdi)
-        self.play( 
-            Rotate(arrow_abi.arrow, PI/2, about_point=arrow_abi.arrow.get_start() ),
-            replace_tex(arrow_abi.label, math_tex("vi").scale(plane_scale) ),
-            FadeOut( arrows_iv[0].label ),
+        tex_sandwich_1 = math_tex("qvq").to_edge(UP)
+        tex_sandwich_2 = math_tex("qv\\overline{q}").next_to(tex_sandwich_1, DOWN)
+        self.play( Write( tex_sandwich_1 ) )
+        self.wait()
 
-            Rotate(arrow_cdi.arrow, -PI/2, about_point=arrow_cdi.arrow.get_start() ),
-            replace_tex(arrow_cdi.label, math_tex("vi").scale(plane_scale) ),
+        def animate_sandwich(labeled_arrow: LabeledArrow, plane: Axes, label2: str, angle: float, reverse_step_2: bool):
+            arrow = labeled_arrow.arrow
+            origin = arrow.get_start()
+            step2sign = -1 if reverse_step_2 else 1
+            angle2 = angle * step2sign
+            radius = 0.25
+            radius2 = 0.375 if reverse_step_2 else radius
+
+            arrow_rot1 = arrow.copy().rotate(angle, about_point=origin)
+            arrow_rot2 = arrow_rot1.copy().rotate(angle2, about_point=origin)
+            mobj_angle1 = Angle(arrow, arrow_rot1, radius=radius, color=MYPINK)
+            mobj_angle2 = Angle(arrow_rot1, arrow_rot2, radius=radius2, color=MYPINK, other_angle=reverse_step_2)
+
+            arrow_qv = LabeledArrow( arrow.copy(), math_tex("v").scale(plane_scale) )
+            self.play(
+                Rotate(arrow_qv.arrow, angle, about_point=origin),
+                replace_tex(arrow_qv.label, math_tex("qv").scale(plane_scale) ),
+                Create(mobj_angle1)
+            )
+
+            self.wait(0.5)
+
+            arrow_qvq = LabeledArrow( arrow_qv.arrow.copy(), math_tex("qv").scale(plane_scale) )
+            conditional_steps = [ FadeOut(labeled_arrow.label) ] if reverse_step_2 else []
+            self.play(
+                Rotate(arrow_qvq.arrow, angle2, about_point=origin),
+                replace_tex(arrow_qvq.label, math_tex(label2).scale(plane_scale) ),
+                Create(mobj_angle2),
+                *conditional_steps
+            )
+
+            net_angle = "\\theta - \\theta" if reverse_step_2 else "\\theta + \\theta"
+            net_angle2 = "0" if reverse_step_2 else "2\\theta"
+            tex_net_angle = MathTex(net_angle).move_to(plane["axes"].c2p(1, -1))
+            self.play(Write(tex_net_angle))
+            self.wait(.5)
+            self.play(replace_tex(tex_net_angle, net_angle2, aligned_edge=ORIGIN))
+            circle = Circle(0.3, color=YELLOW).move_to(tex_net_angle)
+            self.play(Create(circle))
+
+            return VGroup( arrow_qv, arrow_qvq, mobj_angle1, mobj_angle2, tex_net_angle, circle )
+        
+        label = "qvq"
+        angle = PI / 4
+        sandwich1 = animate_sandwich(arrow_ab, plane_1i, label, angle, False)
+        self.wait()
+        sandwich2 = animate_sandwich(arrow_cd, plane_jk, label, angle, True)
+        self.wait()
+
+        self.play(
+            tex_sandwich_1.animate.set_opacity(0.25),
+            FadeOut(sandwich1, sandwich2),
+            FadeIn(arrow_cd.label),
+            Write(tex_sandwich_2),
         )
+        self.wait()
 
+        label = "qv\\overline{q}"
+        sandwich1 = animate_sandwich(arrow_ab, plane_1i, label, angle, True)
+        self.wait()
+        sandwich2 = animate_sandwich(arrow_cd, plane_jk, label, angle, False)
         self.wait()
