@@ -14,7 +14,7 @@ from ExternalLabeledDot import ExternalLabeledDot
 from LabeledArrow import LabeledArrow
 from TransformMatchingKeyTex import TransformMatchingKeyTex, set_transform_key
 from mathutils import clamp, rotate_cc, rotate_cw
-from utils import angle_label_pos, animate_arc_to, animate_replace_tex
+from utils import angle_label_pos, animate_arc_to, animate_replace_tex, compose_colored_tex
 
 c1 = np.array([1, 0, 0])
 ci = np.array([0, 1, 0])
@@ -285,7 +285,7 @@ class ComplexMultiplication(Scene):
 
 class RotationPreview(Scene):
     def construct(self):
-        u_angle = PI / 4
+        u_angle = PI/2 * 1.25
         # u_modulus = 1.3
         u_modulus = 0.8
         u = (math.cos(u_angle) + 1j * math.sin(u_angle)) * u_modulus
@@ -323,9 +323,19 @@ class RotationPreview(Scene):
         self.play(Write(table))
         self.wait()
 
+        cprod2 = ComplexProduct(v, u, u_color=YELLOW, v_color=BLUE)
+        cprod2.move_to(ORIGIN + UP)
+        self.play( 
+            animate_arc_to( cprod.arrow_v, cprod2.arrow_u ),
+            animate_arc_to( cprod.arrow_u, cprod2.arrow_v ),
+            animate_arc_to( cprod.tex_times, cprod2.tex_times ),
+        )
+        self.play(FadeOut(cprod), FadeIn(cprod2), run_time=0.5)
+        self.wait()
+        cprod2.animate(self)
+
         row_commutativity.set_opacity(1)
         self.play(Write(row_commutativity))
-        self.wait()
 
         # operations = [ VGroup(*eq[5:]) for eq in [eq_rotation, eq_scaling] ]
         # rects = [ SurroundingRectangle(op) for op in operations ]
@@ -337,16 +347,7 @@ class RotationPreview(Scene):
         #     LaggedStart(*[FadeOut(rect) for rect in rects], lag_ratio=0.1),
         #     run_tim=1 )
 
-        cprod2 = ComplexProduct(v, u, u_color=YELLOW, v_color=BLUE)
-        cprod2.move_to(ORIGIN + UP)
-        self.play( 
-            animate_arc_to( cprod.arrow_v, cprod2.arrow_u ),
-            animate_arc_to( cprod.arrow_u, cprod2.arrow_v ),
-            animate_arc_to( cprod.tex_times, cprod2.tex_times ),
-        )
-        self.play(FadeOut(cprod), FadeIn(cprod2), run_time=0.5)
         self.wait()
-        cprod2.animate(self)
 
 class ComponentTimesI(Scene):
     def construct(self):
@@ -615,7 +616,9 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
         # for arrow in [arrow_u, arrow_iu]:
         self.wait(0.5)
 
-        self.play( Create( numplane_u ) )
+        # self.play( Create( numplane_u ) )
+        self.play( FadeIn( numplane_u ) )
+        self.wait()
 
         rotation_group = VGroup(arrow_u.arrow, arrow_iu.arrow, numplane_u)
 
@@ -624,8 +627,8 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
             self.play( Rotate( rotation_group, _delta_angle, about_point=ORIGIN ), run_time=1.5 )
         self.wait()
         # Demonstrate scaling of plane by u
-        self.play( rotation_group.animate.scale(0.5, about_point=ORIGIN) )
-        self.play( rotation_group.animate.scale(2, about_point=ORIGIN) )
+        self.play( rotation_group.animate.scale(0.5, about_point=ORIGIN), run_time=1.5 )
+        self.play( rotation_group.animate.scale(2, about_point=ORIGIN), run_time=1.5 )
         self.wait()
 
         arrow_au = LabeledArrow(
@@ -645,7 +648,11 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
         
         dot_uv = ExternalLabeledDot(
             Dot( arrow_biu.arrow.get_end(), z_index=2),
-            MathTex("au + biu", tex_to_color_map=color_map)
+            # MathTex("au + biu", tex_to_color_map=color_map)
+            compose_colored_tex(
+                RED, "a", BLUE, "u", WHITE, "+", 
+                GREEN, "b", BLUE_E, "i", BLUE_E, "u"
+            )
         )
         self.play( dot_uv.create_animation() )
 
@@ -655,32 +662,43 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
         self.play( GrowArrow(arrow_uv), Create(angle_uv) )
         self.wait()
 
-        self.play( animate_replace_tex( dot_uv.label, "u(a + bi)", color_map ) )
+        self.play( dot_uv.animate_relabel( 
+            MathTex(*"u ( a + b i )".split(" "), tex_to_color_map=color_map),
+            path_arc=90*DEGREES
+        ) )
         self.wait()
 
         rotation_group.add( dot_uv.dot, arrow_uv, angle_uv, arrow_au.arrow, arrow_biu.arrow )
 
         self.play( 
             Rotate( rotation_group, -u_angle, about_point=ORIGIN ),
-            animate_replace_tex( dot_uv.label, "a + bi", color_map ),
+            run_time=1.5
+        )
+        self.play(
+            dot_uv.animate_relabel(
+                MathTex(*"a + b i".split(" "), tex_to_color_map=color_map),
+                shift=DOWN
+            ),
             animate_replace_tex( arrow_au.label, "a", color_map ),
             animate_replace_tex( arrow_biu.label, "bi", color_map ),
-            run_time=1.5
         )
-        self.wait(1)
+        self.wait()
         self.play(
-            Rotate( rotation_group, u_angle, about_point=ORIGIN ),
-            animate_replace_tex( dot_uv.label, "u(a + bi)", color_map ),
+            dot_uv.animate_relabel( 
+                MathTex(*"u ( a + b i )".split(" "), tex_to_color_map=color_map),
+                shift=DOWN
+            ),
             animate_replace_tex( arrow_au.label, "au", color_map ),
             animate_replace_tex( arrow_biu.label, "biu", color_map ),
-            run_time=1.5
         )
+        self.wait()
+        self.play( Rotate( rotation_group, u_angle, about_point=ORIGIN ), run_time=1.5)
         self.wait(.5)
 
         angle_u.clear_updaters()
         rotation_group.add(angle_u)
-        self.play( rotation_group.animate.scale(0.5, about_point=ORIGIN) )
-        self.play( rotation_group.animate.scale(2, about_point=ORIGIN) )
+        self.play( rotation_group.animate.scale(0.5, about_point=ORIGIN), run_time=1.5 )
+        self.play( rotation_group.animate.scale(2, about_point=ORIGIN), run_time=1.5 )
         self.wait()
 
         self.play( animate_replace_tex( dot_uv.label, "uv", color_map ) )

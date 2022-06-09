@@ -23,17 +23,26 @@ class ExternalLabeledDot(VMobject):
         else:
             self.aligned_edge = aligned_edge
         
-        def update_label_position(label):
-            label.next_to(self.dot, direction=self.direction * self.distance, aligned_edge=self.aligned_edge)
+        self.position_label(self.label)
+        self.label.add_updater(lambda label: self.position_label(label))
 
-        update_label_position(self.label)
-        self.label.add_updater(update_label_position)
+    def position_label(self, label):
+        return label.next_to(self.dot, direction=self.direction * self.distance, aligned_edge=self.aligned_edge)
     
     def create_animation(self):
         return AnimationGroup(
             GrowFromCenter(self.dot),
             Write(self.label)
         )
+    
+    def animate_relabel(self, next_label: MathTex, **kwargs):
+        old_label = self.label
+        self.label = next_label
+
+        next_label.add_updater(lambda label: self.position_label(label))
+        self.position_label(next_label)
+
+        return TransformMatchingTex(old_label, next_label, **kwargs)
 
 # class _TestScene(Scene):
 #     def construct(self):

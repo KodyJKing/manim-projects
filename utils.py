@@ -15,3 +15,22 @@ def tex_matches(tex: MathTex, *parts):
 
 def angle_label_pos(line1, line2, radius, **kwargs):
     return Angle( line1, line2, radius=radius, **kwargs).point_from_proportion(0.5)
+
+def compose_colored_tex(*color_tex: str, **kwargs):
+    """Builds MathTex with colored tex. Argument has form color1, tex1, color2, tex2..."""
+    colors = []
+    texes = []
+    length = len(color_tex)
+    if length % 2 != 0:
+        raise ValueError("Must provide as many colors as tex strings.")
+    entry_count = length // 2
+    for i in range(entry_count):
+        colors.append(color_tex[i * 2 + 0])
+        texes.append( color_tex[i * 2 + 1])
+    
+    tex = MathTex(*texes, **kwargs)
+
+    for i in range(entry_count):
+        tex[i].set_color(colors[i])
+    
+    return tex
