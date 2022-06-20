@@ -1,13 +1,17 @@
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
-from mathutils import relative_quaternion2
+from mathutils import relative_quaternion2, smoothstep
 import numpy as np
 
-from utils import animate_replace_tex, tex_matches
+from utils import animate_replace_tex, compose_colored_tex, play_rewrite_sequence, tex_matches
 from LabeledArrow import LabeledArrow
 
 SurfaceClass = OpenGLSurface if config.renderer == "opengl" else Surface
+
+vi = RIGHT
+vj = UP
+vk = OUT
 
 ihat = "\hat{\imath}"
 jhat = "\hat{\jmath}"
@@ -142,16 +146,15 @@ class QuatDefinition(Scene):
 
 class ThreeD(ThreeDScene):
     def construct(self):
-        vi = RIGHT
-        vj = UP
-        vk = OUT
+        if config.renderer == "opengl":
+            self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
+        else:
+            self.set_camera_orientation(phi=65*DEGREES, theta=20*DEGREES)
 
-        self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
-
+        axes = ThreeDAxes(x_range=[-5, 5], y_range=[-5, 5], z_range=[-5, 5], x_length=10, y_length=10, z_length=10)
         numplane = NumberPlane(x_range=[-10, 10], y_range=[-10, 10])
         numplane.set_opacity(0).rotate(PI/2, vj)
         self.add(numplane)
-        axes = ThreeDAxes()
         self.add(axes)
 
         arrow_i = Arrow3D(ORIGIN, vi, color=RED)
@@ -159,13 +162,12 @@ class ThreeD(ThreeDScene):
         arrow_k = Arrow3D(ORIGIN, vk, color=BLUE)
 
         label_dist = 1.25
-        tex_i = math_tex("i").move_to(vi * label_dist)
-        tex_j = math_tex("j").move_to(vj * label_dist)
-        tex_k = math_tex("k").move_to(vk * label_dist)
+        tex_i = math_tex("i").move_to(vi * label_dist).set_stroke(BLACK, 5, 1, True)
+        tex_j = math_tex("j").move_to(vj * label_dist).set_stroke(BLACK, 5, 1, True)
+        tex_k = math_tex("k").move_to(vk * label_dist).set_stroke(BLACK, 5, 1, True)
         self.add_fixed_orientation_mobjects( tex_i, tex_j, tex_k )
 
         self.play( 
-            # FadeIn( arrow_i, arrow_j, arrow_k, plane ),
             FadeIn( arrow_i, arrow_j, arrow_k),
             Create(tex_i), Create(tex_j), Create(tex_k) )
 
@@ -173,12 +175,10 @@ class ThreeD(ThreeDScene):
             return AnimationGroup( Indicate(arrow, scale_factor=1), Indicate(tex) )
 
         self.wait()
-        numplane.set_opacity(.25)
         self.play( 
             indicate_arrow(arrow_j, tex_j),
             indicate_arrow(arrow_k, tex_k),
-            # GrowFromPoint(plane, ORIGIN) )
-            FadeIn(numplane)
+            numplane.animate.set_opacity(0.25)
         )
         self.play( indicate_arrow(arrow_i, tex_i) )
         self.wait()
@@ -233,12 +233,14 @@ class ThreeD(ThreeDScene):
 
             self.play( FadeOut( *arcs, i_rect ) )
         
-        tex_mult_side = Tex("Left multiplication: $iv$").to_corner(UL)
+        tex_mult_side = VGroup(Tex("Left multiplication:"), math_tex("iv")).arrange().to_corner(UL)
+        tex_mult_side[1].shift(UP * 0.05) # Align to baseline. Might be worth creating a generic utility function for this.
         self.add_fixed_in_frame_mobjects(tex_mult_side)
         self.play(Write(tex_mult_side))
         show_sided_i_multiplication("left")
         self.play(FadeOut(tex_mult_side))
-        tex_mult_side = Tex("Right multiplication: $vi$").to_corner(UL)
+        tex_mult_side = VGroup(Tex("Right multiplication:"), math_tex("vi")).arrange().to_corner(UL)
+        tex_mult_side[1].shift(UP * 0.05) # Align to baseline
         self.add_fixed_in_frame_mobjects(tex_mult_side)
         self.play(Write(tex_mult_side))
         show_sided_i_multiplication("right")
@@ -246,10 +248,145 @@ class ThreeD(ThreeDScene):
 
         self.wait()
 
-        rect = SurroundingRectangle(table.get_entries((2, 2)), color=RED)
-        self.add_fixed_in_frame_mobjects(rect)
-        self.play( Create(rect) )
+class ThreeDPart2(ThreeDScene):
+    def construct(self):
+        self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
 
+        numplane = NumberPlane(x_range=[-10, 10], y_range=[-10, 10])
+        numplane.rotate(PI/2, vj).set_opacity(.25)
+        self.add(numplane)
+        axes = ThreeDAxes(x_range=[-5, 5], y_range=[-5, 5], z_range=[-5, 5], x_length=10, y_length=10, z_length=10)
+        self.add(axes)
+
+        arrow_i = Arrow3D(ORIGIN, vi, color=RED)
+        arrow_j = Arrow3D(ORIGIN, vj, color=GREEN)
+        arrow_k = Arrow3D(ORIGIN, vk, color=BLUE)
+        self.add(arrow_i, arrow_j, arrow_k)
+
+        label_dist = 1.25
+        tex_i = math_tex("i").move_to(vi * label_dist)
+        tex_j = math_tex("j").move_to(vj * label_dist)
+        tex_k = math_tex("k").move_to(vk * label_dist)
+        self.add_fixed_orientation_mobjects( tex_i, tex_j, tex_k )
+
+        table = pure_quat_times_table(color_map).scale(0.5).to_edge(LEFT)
+        table_background = SurroundingRectangle( table, color=BLACK, fill_color=BLACK, fill_opacity=1, buff=0 )
+        self.add_fixed_in_frame_mobjects(table_background)
+        self.add_fixed_in_frame_mobjects(table) 
+
+        self.play(FadeOut(table_background, table))
+
+        tex_rotor = MathTex(*"q =cos(\\theta)+ i sin(\\theta)".split(" "))
+        tex_rotor[0].set_color(MYPINK)
+        tex_rotor[2].set_color(RED)
+        tex_rotor.to_corner(UR)
+        self.add_fixed_in_frame_mobjects(tex_rotor)
+        self.play(Write(tex_rotor))
+        self.wait()
+
+        def animate_rotation(theta_label, angle):
+            theta_tracker = ValueTracker(0)
+            def get_angle():
+                theta = theta_tracker.get_value()
+                sign = np.sign(theta)
+                if abs(theta) < 0.001:
+                    return VGroup()
+                angle = Angle(
+                    Line(ORIGIN, UP),
+                    Line(ORIGIN, UP).rotate(theta, about_point=ORIGIN),
+                    other_angle=sign<0
+                ).rotate(PI/2, vj, ORIGIN)
+                midpoint = angle.get_midpoint()
+                opacity = smoothstep(0, 20*DEGREES, abs(theta))
+                label = MathTex(theta_label).next_to(midpoint + OUT * 0.1 * sign, normalize(midpoint), buff=0.1)
+                label.set_opacity(opacity).scale(0.75)
+                label.fix_orientation()
+                return VGroup(angle, label)
+            mobj_angle = always_redraw(get_angle)
+            self.add(mobj_angle)
+
+            arrow_j_copy = arrow_j.copy()
+            arrow_k_copy = arrow_k.copy()
+            rotation_group = Group(arrow_j_copy, arrow_k_copy)
+            
+            self.play(
+                Rotate(rotation_group, angle, vi, ORIGIN),
+                Rotate(numplane, angle, vi, ORIGIN),
+                theta_tracker.animate.increment_value(angle)
+            )
+            self.wait()
+            self.play( FadeOut(mobj_angle, arrow_j_copy, arrow_k_copy) )
+            self.play( numplane.animate.set_opacity(0), run_time=0.5 )
+            numplane.rotate(-angle, vi, ORIGIN)
+            self.play( numplane.animate.set_opacity(0.25),  run_time=0.5 )
+
+        # Show sided multiplication by q
+        tex_left_label = Tex("Counter-clockwise: ")
+        tex_left_multiply = math_tex("qv").next_to(tex_left_label, RIGHT).shift(DOWN * 0.1)
+        left_group = VGroup(tex_left_label, tex_left_multiply)
+        left_group.to_corner(UL)
+        self.add_fixed_in_frame_mobjects(left_group)
+        self.play(Write(left_group))
+        
+        animate_rotation("\\theta", 60*DEGREES)
+        self.wait()
+
+        tex_right_label = Tex("Clockwise: ")
+        tex_right_multiply = math_tex("vq").next_to(tex_right_label, RIGHT).shift(DOWN * 0.1)
+        right_group = VGroup(tex_right_label, tex_right_multiply)
+        right_group.next_to(left_group, DOWN, aligned_edge=LEFT)
+        self.add_fixed_in_frame_mobjects(right_group)
+        self.play(Write(right_group))
+
+        animate_rotation("-\\theta", -60*DEGREES)
+        self.wait()
+
+        self.play(FadeOut(left_group, right_group, tex_rotor))
+
+        # Show issue with rotation outside of jk-plane
+        arrow_v = Arrow3D(ORIGIN, vj + vk)
+        self.play(FadeIn(arrow_v))
+        self.play(Indicate(numplane, 1.1))
+
+        self.move_camera(phi=75*DEGREES, theta=145*DEGREES)
+
+        arrow_v_i = Arrow3D(ORIGIN, vi, color=RED).shift(vj + vk)
+        self.play(
+            # FadeIn(arrow_v_i),
+            GrowFromPoint(arrow_v_i, vj + vk),
+            arrow_v.animate.become(Arrow3D(ORIGIN, vj + vk + vi))
+        )
+        self.wait()
+
+        self.play(
+            LaggedStart(
+                AnimationGroup(Indicate(arrow_i, 1), Indicate(tex_i)),
+                Rotate(
+                    Group(arrow_v, arrow_v_i),
+                    TAU, vi, ORIGIN
+                )
+            ),
+            run_time=2
+        )
+        self.wait()
+        
+        # Write out i(xi + yj + zk) and simplify.
+        self.play(FadeIn(table_background, table))
+        steps = [
+            (math_tex(*"i ( x i + y j + z k )".split(" ")), False),
+            (math_tex(*" x i i + y i j + z i k".split(" ")), True),
+            (math_tex(*" x ( - 1 ) + y k + z ( - j )".split(" ")), False),
+            (math_tex(*"- x + y k - z j".split(" ")), True),
+        ]
+        steps[0][0].to_corner(UL)
+        for step in steps:
+            step[0].fix_in_frame()
+        play_rewrite_sequence(self, *steps)
+
+        # Highlight real part of product.
+        rect = SurroundingRectangle(steps[-1][0][:2], color=RED)
+        self.add_fixed_in_frame_mobjects(rect)
+        self.play(Create(rect))
         self.wait()
 
 class DualPlanes(Scene):

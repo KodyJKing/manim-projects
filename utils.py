@@ -1,3 +1,4 @@
+from typing import Callable, Tuple
 from manim import *
 
 def animate_replace_tex(tex: MathTex, text_or_tex: str | MathTex, tex_to_color_map=None, aligned_edge=LEFT):
@@ -34,3 +35,22 @@ def compose_colored_tex(*color_tex: str, **kwargs):
         tex[i].set_color(colors[i])
     
     return tex
+
+def play_rewrite_sequence(
+        scene: Scene, *steps: Tuple[MathTex, bool], key_map: dict[str, str] = {},
+        first_wait=1, wait=1, run_time_per_step=1,
+        aligned_edge: np.array = LEFT
+    ):
+        scene.play(Write(steps[0][0]))
+        if first_wait > 0:
+            scene.wait(first_wait)
+        prev_step = steps[0][0]
+        for tex, glide in steps[1:]:
+            tex.move_to(prev_step, aligned_edge=aligned_edge)
+            if glide:
+                scene.play(TransformMatchingTex(prev_step, tex, path_arc=-90*DEGREES, key_map=key_map), run_time=run_time_per_step)
+            else:
+                scene.play(ReplacementTransform(prev_step, tex), run_time=run_time_per_step)
+            if wait > 0:
+                scene.wait(wait)
+            prev_step = tex

@@ -750,7 +750,7 @@ class UnitComplexNumbers(Scene):
                 label_theta = MathTex(theta_text).scale(.8).move_to(angle.get_midpoint() * 2)
                 label = MathTex(label_text).next_to(dot, u, buff=0.1)
                 result = VDict({
-                    "dot": dot, "line": line, "angle": angle, 
+                    "dot": dot, "line": line, "angle": angle,
                     "label_theta": label_theta, "label": label
                 })
                 return result
