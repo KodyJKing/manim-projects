@@ -1,4 +1,5 @@
 import cmath
+from lib2to3.pytree import LeafPattern
 import math
 from manim import *
 from manim.utils.space_ops import ( 
@@ -13,7 +14,7 @@ from ComplexArrow import ComplexArrow, ComplexProduct
 from ExternalLabeledDot import ExternalLabeledDot
 from LabeledArrow import LabeledArrow
 from TransformMatchingKeyTex import TransformMatchingKeyTex, set_transform_key
-from mathutils import clamp, rotate_cc, rotate_cw
+from mathutils import clamp, rotate_cc, rotate_cw, smoothstep
 from utils import angle_label_pos, animate_arc_to, animate_replace_tex, compose_colored_tex
 
 c1 = np.array([1, 0, 0])
@@ -261,27 +262,108 @@ class ComplexNumbers(Scene):
 
         self.wait()
 
-class ComplexMultiplication(Scene):
+class ComplexAdditionAndScaling(Scene):
     def construct(self):
-        color_map = {"a":RED, "b":GREEN, "c":RED, "d":GREEN}
-        steps = [
-            "( a + b i ) ( c + d i )",
-            "a c + b d i^2 + a d i + b c i",
-            "a c - b d + a d i + b c i",
-            "( a c - b d ) + ( a d + b c ) i",
-        ]
-        steps = VGroup(*map(lambda x: MathTex(*x.split(" "), tex_to_color_map=color_map), steps))
-        self.play(Write(steps[0]))
+        dot = Dot().set_z_index(10)
+
+        u = RIGHT * 3 + UP
+        v = LEFT * 2 + UP
+        w = u + v
+
+        arrow_u = LabeledArrow(
+            Arrow(ORIGIN, u, buff=0, color=BLUE), MathTex("u", color=BLUE),
+            distance=0, perp_distance=0.35, alpha=0.5
+        )
+        arrow_v = LabeledArrow(
+            Arrow(ORIGIN, v, buff=0, color=YELLOW), MathTex("v", color=YELLOW),
+            distance=0, perp_distance=-0.35, alpha=0.5
+        )
+        arrow_w = LabeledArrow(
+            Arrow(ORIGIN, w, buff=0, color=GREEN), MathTex("u + v", tex_to_color_map={"u":BLUE,"v":YELLOW}),
+            distance=0, perp_distance=0.35, alpha=0.75,
+            aligned_edge=RIGHT
+        )
+
+        self.add(dot, arrow_u, arrow_v)
         self.wait()
-        prev_step = steps[0]
-        key_map = {"i":"i^2"}
-        for step in steps[1:-1]:
-            self.play(TransformMatchingTex(prev_step, step, path_arc=-90*DEGREES, key_map=key_map), run_time=2)
-            prev_step = step
-        eq_prefix = MathTex("(a+bi)(c+di) =", tex_to_color_map=color_map)
-        eq_prefix.next_to(prev_step, LEFT).set_opacity(0)
-        self.play( VGroup(eq_prefix, prev_step ).animate.move_to(ORIGIN) )
-        self.play(Write(eq_prefix.set_opacity(1)))
+        self.play(arrow_v.animate.shift(u))
+        self.play(arrow_w.grow_animation())
+        self.wait()
+
+        self.play(FadeOut(arrow_u, arrow_v, arrow_w))
+
+        x = RIGHT + UP
+        s_tracker = ValueTracker(1)
+
+        arrow_x = LabeledArrow(
+            Arrow(ORIGIN, x, buff=0, color=BLUE), MathTex("u", color=BLUE),
+            distance=0, perp_distance=0.35, alpha=0.5
+        ).set_z_index(1)
+
+        def get_scaled():
+            s = s_tracker.get_value()
+            opacity = smoothstep(1, 1.5, s)
+            return LabeledArrow(
+                Arrow(ORIGIN, s * x, buff=0, color=BLUE_A),
+                VGroup(DecimalNumber(s).scale(0.75), MathTex("u", color=BLUE))
+                    .arrange(buff=1/16).set_opacity(opacity),
+                distance=0.35
+            )
+
+        arrow_sx = always_redraw(get_scaled)
+
+        self.play(FadeIn(arrow_x))
+        self.add(arrow_sx)
+        self.wait()
+        self.play(s_tracker.animate.set_value(2))
+        self.wait()
+
+class AlgebraicProps(Scene):
+    def construct(self):
+        color_map = { "x": BLUE, "y": GREEN, "z": RED, r"\text{  if  }": YELLOW }
+
+        def math_tex(*text, isolate=[], **kwargs):
+            keys = color_map.keys()
+            substrings_to_isolate = [*isolate, *keys]
+            result = MathTex(*text, substrings_to_isolate=substrings_to_isolate, **kwargs)
+            result.set_color_by_tex_to_color_map(color_map, substring=False)
+            return result
+
+        def sideline(mobj: Mobject):
+            ul = mobj.get_corner(UL)
+            dl = mobj.get_corner(DL)
+            return Line(ul, dl), mobj
+            # return Brace(mobj, LEFT), mobj
+
+        title = Tex(r"\underline{Complex Number Algebra}")
+        title.to_corner(UL)
+        self.add(title)
+
+        field_blurb = MathTex(
+            r"""&\text{Complex numbers follow the same addition}
+            \\&\text{and multiplication rules as real numbers.}
+            \\&\text{These rules are called the field axioms.}""",
+            color=GRAY_A
+        )
+        field_blurb.scale(1/2).to_corner(UR)
+
+        table = VGroup(
+            Tex("Associativity"), *sideline(math_tex(r"x + (y + z) &= (x + y) + z \\ x(yz) &= (xy)z")),
+            Rectangle(BLACK, 1, 0.5),
+            Tex("Commutativity"), *sideline(math_tex(r"x + y &= y + x \\ xy &= yx")),
+
+            Tex(r"Identity"), *sideline(math_tex(r"x + 0 &= x \\ x \cdot 1 &= x")),
+            Rectangle(BLACK, 1, 0.5),
+            Tex(r"Inverse"),  *sideline(math_tex(r"x + (-x) &= 0 \\ x \cdot \frac{1}{x} &= 1 \text{  if  } x \neq 0 ")),
+
+            Tex("Distributivity"), *sideline(math_tex(r"x (y + z) &= xy + xz \\ (x + y) z &= xz + yz")),
+        ).arrange_in_grid(3, 7, col_alignments="rclcrcl", buff=(0.25, 0.5))
+
+        self.add(table.scale(2/3))
+        self.wait()
+
+        self.play(Write(field_blurb))
+        self.wait()
 
 class RotationPreview(Scene):
     def construct(self):
@@ -334,8 +416,8 @@ class RotationPreview(Scene):
         self.wait()
         cprod2.animate(self)
 
-        row_commutativity.set_opacity(1)
-        self.play(Write(row_commutativity))
+        # row_commutativity.set_opacity(1)
+        # self.play(Write(row_commutativity))
 
         # operations = [ VGroup(*eq[5:]) for eq in [eq_rotation, eq_scaling] ]
         # rects = [ SurroundingRectangle(op) for op in operations ]
@@ -349,6 +431,7 @@ class RotationPreview(Scene):
 
         self.wait()
 
+# Unused
 class ComponentTimesI(Scene):
     def construct(self):
         numplane = ComplexPlane().add_coordinates()
@@ -472,6 +555,7 @@ class ComponentTimesI(Scene):
         self.play(numplane.animate.set_opacity(1), run_time=0.5)
         self.play(Indicate(numplane, 1))
 
+# Unused      
 class ArbitraryTimesI(Scene):
     def construct(self):
         color_map = { "a": RED, "b": GREEN }
@@ -566,6 +650,117 @@ class ArbitraryTimesI(Scene):
         self.play( TransformMatchingKeyTex(step_tex, step_tex2, path_arc=-90*DEGREES ) )
         self.wait()
         self.play( animate_replace_tex(step_tex2, "0", color_map, ORIGIN) )
+
+        self.wait()
+
+class ActionOfI(Scene):
+    def construct(self):
+        color_map = {"a":RED, "b":GREEN, "u": BLUE}
+
+        def math_tex(*text, **kwargs):
+            return MathTex(*text, tex_to_color_map=color_map, **kwargs)
+
+        def rotate_by_i(mobj, about_point=ORIGIN):
+            return Rotate(mobj, PI/2, about_point=about_point)
+
+        title = Tex("Action of i")
+        title.to_corner(UL)
+
+        numplane = ComplexPlane(x_range=[-10, 10], y_range=[-10, 10])
+        numplane.set_opacity(0.25).set_z_index(-10)
+        dot = Dot().set_z_index(10)
+
+        equation1 = math_tex(*"i ( a + b i )".split(" "))
+        equation1.next_to(equation1, DOWN, buff=1)
+        equation_background = SurroundingRectangle(equation1, color=WHITE).set_fill(BLACK, 1).set_z_index(-1)
+        
+        u = 3 * c1 + 2 * ci
+        iu = rotate_cc(u)
+        arrow_ua = LabeledArrow(
+            Arrow(ORIGIN, u * RIGHT, buff=0, color=RED),
+            math_tex("a"),
+            perp_distance=-0.35, distance=0, alpha=0.5
+        )
+        arrow_ub = LabeledArrow(
+            Arrow(u * RIGHT, u, buff=0, color=GREEN),
+            math_tex("bi"),
+            perp_distance=-0.35, distance=0, alpha=0.5
+        )
+
+        arrow_u = Arrow(ORIGIN, u, buff=0, color=BLUE)
+        arrow_iu = Arrow(ORIGIN, iu, buff=0, color=BLUE)
+        angle_u_iu = Angle(arrow_u, arrow_iu, elbow=True, color=BLUE)
+
+        dot_u = ExternalLabeledDot(
+            Dot(u),
+            math_tex("a + bi"),
+            normalize(u)
+        )
+        dot_iu = ExternalLabeledDot(
+            Dot(iu),
+            math_tex("-b + ai"),
+            normalize(iu)
+        )
+
+        self.add(dot, numplane)
+        self.play(Write(title))
+
+        self.wait()
+
+        self.play(dot_u.create_animation())
+        self.play(arrow_ua.grow_animation())
+        self.play(arrow_ub.grow_animation())
+
+        self.play( Write(equation1) )
+        self.play( Create(equation_background) )
+        self.wait()
+        self.play( TransformMatchingTex( 
+            equation1, 
+            equation2 := math_tex(*"a i + b i i".split(" ")).move_to(equation1),
+            shift=ORIGIN
+        ) )
+        self.add(equation3 := math_tex(*"a i + b ii".split(" ")).move_to(equation1))
+        self.remove(equation2)
+        self.play( TransformMatchingTex( 
+            equation3, 
+            equation4 := math_tex(*"a i - b".split(" ")).move_to(equation3),
+            shift=ORIGIN, key_map={"ii":"-"}
+        ) )
+
+        arrow_uai = arrow_ua.copy()
+        arrow_ubi = arrow_ub.copy()
+
+        self.add(arrow_uai, arrow_ubi)
+        self.remove(arrow_ua, arrow_ub)
+
+        self.play( arrow_uai.animate_relabel( math_tex("a", "i") ) )
+        self.play(rotate_by_i(arrow_uai.arrow))
+        self.play( arrow_ubi.animate_relabel( math_tex("b", "i", "i") ) )
+        arrow_ubi.relabel(math_tex("b", "ii"), scene=self)
+        self.play( arrow_ubi.animate_relabel( math_tex("-", "b"), key_map={"ii":"-"} ) )
+        self.play(rotate_by_i(arrow_ubi.arrow, about_point=arrow_ubi.arrow.get_start()))
+        self.play( arrow_ubi.arrow.animate.shift(
+            arrow_uai.arrow.get_end() - arrow_ubi.arrow.get_start()
+        ) )
+        self.play(dot_iu.create_animation())
+        self.wait()
+
+        self.play(FadeIn(arrow_ua, arrow_ub))
+
+        rotation_group = VGroup(
+            arrow_ua.arrow.copy(),
+            arrow_ub.arrow.copy(),
+        )
+
+        self.play(rotate_by_i(rotation_group), rotate_by_i(numplane))
+
+        self.play(FadeOut( rotation_group, arrow_ua, arrow_ub, arrow_uai, arrow_ubi, equation4, equation_background ))
+
+        self.play(
+            GrowArrow(arrow_u), GrowArrow(arrow_iu),
+            dot_u.animate_relabel(math_tex("u")), dot_iu.animate_relabel(math_tex("iu")),
+            Create(angle_u_iu)
+        )
 
         self.wait()
 

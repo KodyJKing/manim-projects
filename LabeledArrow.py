@@ -28,15 +28,17 @@ class LabeledArrow(VMobject):
         
         self.refresh_updaters()
 
+    def position_label(self, label):
+        arrow_dir = self.arrow.get_unit_vector()
+        length = self.arrow.get_length()
+        position = ( self.arrow.get_start() + arrow_dir * (self.alpha * length + self.distance)
+            + rotate_cc(arrow_dir) * self.perp_distance )
+        label.move_to(position, aligned_edge=self.aligned_edge)
+
     def refresh_updaters(self):
-        def update_label(label):
-            arrow_dir = self.arrow.get_unit_vector()
-            length = self.arrow.get_length()
-            position = ( self.arrow.get_start() + arrow_dir * (self.alpha * length + self.distance)
-                + rotate_cc(arrow_dir) * self.perp_distance )
-            label.move_to(position, aligned_edge=self.aligned_edge)
         self.label.clear_updaters()
-        self.label.add_updater(update_label)
+        self.label.add_updater(lambda label: self.position_label(label))
+        self.position_label(self.label)
 
     def copy(self):
         result = super().copy()
@@ -45,3 +47,28 @@ class LabeledArrow(VMobject):
     
     def grow_animation(self):
         return GrowFromPoint( self, self.arrow.get_start() )
+
+    def relabel(self, next_label: MathTex, add_next=True, scene: Scene=None):
+        old_label = self.label
+        self.label = next_label
+        next_label.add_updater(lambda label: self.position_label(label))
+        self.position_label(next_label)
+        self.remove(old_label)
+        if add_next:
+            self.add(next_label)
+        if scene:
+            scene.remove(old_label)
+
+    def animate_relabel(self, next_label: MathTex, match_tex=True, **kwargs):
+        old_label = self.label
+        self.relabel(next_label, False)
+
+        if match_tex:
+            animation = TransformMatchingTex(old_label, next_label, **kwargs)
+        else:
+            animation = ReplacementTransform(old_label, next_label, **kwargs)
+
+        def on_finish(scene: Scene):
+            self.add(next_label)
+
+        return AnimationGroup(animation, _on_finish=on_finish )
