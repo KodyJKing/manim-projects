@@ -1,10 +1,11 @@
+from re import T
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
 from mathutils import relative_quaternion2, smoothstep
 import numpy as np
 
-from utils import animate_replace_tex, compose_colored_tex, play_rewrite_sequence, tex_matches
+from utils import animate_replace_tex, colored_math_tex, compose_colored_tex, play_rewrite_sequence, tex_matches
 from LabeledArrow import LabeledArrow
 
 SurfaceClass = OpenGLSurface if config.renderer == "opengl" else Surface
@@ -26,7 +27,7 @@ color_map = {
     "\\overline{q}": MYPINK,
     ihat: RED, jhat: GREEN, khat: BLUE,
     "i": RED, "j": GREEN, "k": BLUE, "b": WHITE,
-    "q": MYPINK,
+    "q": MYPINK, r"\theta": MYPINK,
     "\\times": WHITE,
 }
 
@@ -435,9 +436,7 @@ class DualPlanes(Scene):
         self.wait()
 
         tex_v = math_tex(*"v = a + bi + cj + dk".split(" ")).next_to(plane_group, DOWN)
-        tex_q = MathTex("q", "=cos(\\theta)+", "i", "sin(\\theta)").next_to(tex_v, DOWN)
-        tex_q[0].set_color(MYPINK)
-        tex_q[2].set_color(RED)
+        tex_q = colored_math_tex(r"q = cos(\theta) + i sin(\theta)", t2c=color_map).next_to(tex_v, DOWN)
         self.play( Write( tex_v ) )
 
         self.wait()
@@ -448,10 +447,10 @@ class DualPlanes(Scene):
             LabeledArrow(
                 Arrow( plane["axes"].c2p(0,0), plane["axes"].c2p(*coord), buff=0),
                 math_tex("v").scale(plane_scale),
-            ) for plane, coord, edge in [ 
-                # (plane_1i, (3/5,-4/5), LEFT), (plane_jk, (3/5, 4/5), RIGHT)
-                # (plane_1i, (c45, c45), LEFT), (plane_jk, (c45, c45), RIGHT)
-                (plane_1i, (0, 1), LEFT), (plane_jk, (c45, c45), RIGHT)
+            ) for plane, coord in [ 
+                # (plane_1i, (3/5,-4/5)), (plane_jk, (3/5, 4/5))
+                # (plane_1i, (c45, c45)), (plane_jk, (c45, c45))
+                (plane_1i, (0, 1)), (plane_jk, (c45, c45))
             ]
         ]
 
@@ -567,11 +566,12 @@ class DualPlanes(Scene):
 
             net_angle = "\\theta - \\theta" if reverse_step_2 else "\\theta + \\theta"
             net_angle2 = "0" if reverse_step_2 else "2\\theta"
-            tex_net_angle = MathTex(net_angle).move_to(plane["axes"].c2p(1, -1))
+            tex_net_angle = math_tex(net_angle).move_to(plane["axes"].c2p(1, -1))
             self.play(Write(tex_net_angle))
             self.wait(.5)
             self.play(replace_tex(tex_net_angle, net_angle2, aligned_edge=ORIGIN))
             circle = Circle(0.3, color=YELLOW).move_to(tex_net_angle)
+            # circle.point_from_proportion()
             self.play(Create(circle))
 
             return VGroup( arrow_qv, arrow_qvq, mobj_angle1, mobj_angle2, tex_net_angle, circle )
@@ -596,3 +596,122 @@ class DualPlanes(Scene):
         self.wait()
         sandwich2 = animate_sandwich(arrow_cd, plane_jk, label, angle, False)
         self.wait()
+
+class RotationFormula(Scene):
+    def construct(self):
+        tex_title = Tex(r"\underline{Rotation Formula}").to_corner(UL)
+        self.add(tex_title)
+
+        lines = VGroup(
+            VGroup(
+                Tex("The map"),
+                colored_math_tex(r"v \rightarrow q v \overline{q}", t2c=color_map),
+                Tex(r"rotates $v$ about ", "$i$", " by ").set_color_by_tex("i", RED),
+                tex_angle := colored_math_tex(r"2 \theta", t2c=color_map)
+            ).arrange(),
+            Tex("where"),
+            tex_q_def := colored_math_tex(r"q = cos(\theta) + i sin(\theta)", t2c=color_map),
+        ).arrange(DOWN)
+
+        
+        self.play(Write(lines))
+        self.wait()
+
+        self.play(Indicate(tex_angle[1]), Indicate(tex_q_def[2]), Indicate(tex_q_def[6]))
+
+        q_def_2_string = r"q = cos(\tfrac{1}{2}\theta) + i sin(\tfrac{1}{2}\theta)"
+        _color_map = color_map | {r"\tfrac{1}{2}":WHITE}
+        self.play( 
+            LaggedStart(
+                TransformMatchingTex( tex_q_def, colored_math_tex(q_def_2_string, t2c=_color_map).move_to(tex_q_def) ),
+                TransformMatchingTex( tex_angle, colored_math_tex(r"\theta", t2c=color_map).move_to(tex_angle, LEFT), shift=ORIGIN ),
+                lag_ratio=0.75
+            ),
+            run_time=1.5
+        )
+
+class Generalizing(Scene):
+    def construct(self):
+        _color_map = color_map | {"ii":RED, "{i}":RED, "-1": WHITE, "=": WHITE}
+        tex_kw = { "t2c": _color_map }
+
+        def get_permute(r):
+            epsilon = 0.05/r
+            circle = Circle(r)
+            pfp = lambda p: circle.point_from_proportion(p)
+            get_arrow = lambda p: CurvedArrow(pfp(p+epsilon), pfp(p+1/3-epsilon), radius=r+r/15, tip_length=r/5)
+            return VGroup(
+                math_tex("i").move_to(pfp(0/3)),
+                get_arrow(0/3),
+                math_tex("j").move_to(pfp(1/3)),
+                get_arrow(1/3),
+                math_tex("k").move_to(pfp(2/3)),
+                get_arrow(2/3),
+            )
+
+        equations = VGroup(
+            tex_full_ident := math_tex("i^2 = j^2 = k^2 = ijk = -1"),
+            tex_ident := colored_math_tex("i j k = -1", **tex_kw),
+        ).arrange(DOWN, 1)
+
+        self.play(Write(tex_full_ident))
+
+        permute = get_permute(.5)
+        permute.to_edge(UP)
+        self.play(Write(permute))
+
+        self.play(Write(tex_ident))
+
+        def transform(new_tex, match=True, **kwargs):
+            new_tex.move_to(tex_ident)
+            if match:
+                self.play(TransformMatchingTex(tex_ident, new_tex, **kwargs))
+            else:
+                self.play(ReplacementTransform(tex_ident, new_tex, **kwargs))
+            return new_tex
+        
+        def replace(new_tex):
+            new_tex.move_to(tex_ident)
+            self.remove(tex_ident)
+            return new_tex
+
+        tex_ident = transform(colored_math_tex("{i}(i j k){i} = {i}(-1){i}", **tex_kw), shift=DOWN)
+        self.wait()
+        tex_ident = replace(colored_math_tex("i(i j k)i = i(-1)i", **tex_kw))
+        tex_ident = transform(colored_math_tex("(i i)j k i = (i i)(-1)", **tex_kw), path_arc=90*DEGREES)
+        self.wait()
+        tex_ident = replace(colored_math_tex("(ii)j k i = (ii)(-1)", **tex_kw))
+        tex_ident = transform(colored_math_tex("j k i = -1", **tex_kw), shift=DOWN)
+        self.wait()
+
+        tex_ident_squares = colored_math_tex("j^2 = k^2 = i^2 = ", **tex_kw)
+        VGroup(tex_ident_squares, tex_ident_copy := tex_ident.copy()).arrange(aligned_edge=DOWN, buff=0.16).move_to(tex_ident)
+        self.play(Write(tex_ident_squares), tex_ident.animate.move_to(tex_ident_copy))
+        tex_ident_full_j = VGroup(tex_ident_squares, tex_ident)
+
+        self.play( VGroup( tex_full_ident, tex_ident_full_j ).animate.to_edge(LEFT, buff=1) )
+
+        def add_blurb(identity, axis_string="i", color=RED, theta_color=MYPINK):
+
+            _color_map = color_map | { r"\overline{q}": theta_color, "q": theta_color, r"\theta": theta_color }
+
+            blurb = VGroup(
+                VGroup(
+                    Tex("If"),
+                    colored_math_tex(r"q = cos(\tfrac{1}{2}\theta) + " + axis_string + r" sin(\tfrac{1}{2}\theta)", t2c=_color_map),
+                ).arrange(),
+                VGroup(
+                    colored_math_tex(r"q v \overline{q}", t2c=_color_map),
+                    Tex(r"rotates $v$ about ", f"${axis_string}$", " by ").set_color_by_tex(axis_string, color),
+                    colored_math_tex(r"\theta", t2c=_color_map)
+                ).arrange(),
+            ).arrange(DOWN)
+            blurb.scale(2/3)
+            blurb = VGroup( SurroundingRectangle(blurb).set_z_index(-1), blurb )
+            blurb = VGroup( MathTex(r"\Rightarrow"), blurb ).arrange(buff=1)
+            blurb.next_to(identity, buff=1)
+
+            self.play(Write(blurb))
+        
+        add_blurb(tex_full_ident)
+        add_blurb(tex_ident_full_j, "j", GREEN, GREEN_B)

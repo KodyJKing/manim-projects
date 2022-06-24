@@ -1,5 +1,6 @@
-from typing import Callable, Tuple
+from typing import Callable, Iterable, Tuple
 from manim import *
+import re
 
 def animate_replace_tex(tex: MathTex, text_or_tex: str | MathTex, tex_to_color_map=None, aligned_edge=LEFT):
     if isinstance(text_or_tex, str):
@@ -16,6 +17,29 @@ def tex_matches(tex: MathTex, *parts):
 
 def angle_label_pos(line1, line2, radius, **kwargs):
     return Angle( line1, line2, radius=radius, **kwargs).point_from_proportion(0.5)
+
+def colored_math_tex(*tex_strings, t2c:dict[str, str]={}, **kwargs):
+    """MathTex, but with better coloring behaviour."""
+
+    def get_tex_strings():
+        keys = t2c.keys()
+        word_patterns = [
+            f"(?<!\w)({re.escape(pattern)})(?!\w)"
+            for pattern in keys
+        ]
+        pattern = "|".join(word_patterns)
+        result = []
+        for s in tex_strings:
+            result.extend(re.split(pattern, s))
+        result = [piece for piece in result if piece and len(piece.strip(" ")) > 0]
+        return result
+
+    tex_strings = get_tex_strings()
+    # print(tex_strings)
+
+    result = MathTex(*tex_strings, **kwargs)
+    result.set_color_by_tex_to_color_map(t2c, substring=False)
+    return result
 
 def compose_colored_tex(*color_tex: str, **kwargs):
     """Builds MathTex with colored tex. Argument has form color1, tex1, color2, tex2..."""

@@ -15,7 +15,7 @@ from ExternalLabeledDot import ExternalLabeledDot
 from LabeledArrow import LabeledArrow
 from TransformMatchingKeyTex import TransformMatchingKeyTex, set_transform_key
 from mathutils import clamp, rotate_cc, rotate_cw, smoothstep
-from utils import angle_label_pos, animate_arc_to, animate_replace_tex, compose_colored_tex
+from utils import angle_label_pos, animate_arc_to, animate_replace_tex, colored_math_tex, compose_colored_tex
 
 c1 = np.array([1, 0, 0])
 ci = np.array([0, 1, 0])
@@ -845,7 +845,7 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
             Dot( arrow_biu.arrow.get_end(), z_index=2),
             # MathTex("au + biu", tex_to_color_map=color_map)
             compose_colored_tex(
-                RED, "a", BLUE, "u", WHITE, "+", 
+                RED, "a", BLUE, "u", WHITE, "+",
                 GREEN, "b", BLUE_E, "i", BLUE_E, "u"
             )
         )
