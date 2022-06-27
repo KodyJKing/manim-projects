@@ -23,6 +23,8 @@ def colored_math_tex(*tex_strings, t2c:dict[str, str]={}, **kwargs):
 
     def get_tex_strings():
         keys = t2c.keys()
+        if len(keys) == 0:
+            return tex_strings
         word_patterns = [
             f"(?<!\w)({re.escape(pattern)})(?!\w)"
             for pattern in keys

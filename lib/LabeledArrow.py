@@ -1,7 +1,7 @@
 from manim import *
 import numpy as np
 
-from mathutils import rotate_cc
+from lib.mathutils import rotate_cc
 
 class LabeledArrow(VMobject):
 

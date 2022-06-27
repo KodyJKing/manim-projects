@@ -1,5 +1,3 @@
-import cmath
-from lib2to3.pytree import LeafPattern
 import math
 from manim import *
 from manim.utils.space_ops import ( 
@@ -9,13 +7,13 @@ from manim.utils.space_ops import (
     quaternion_conjugate as qconj
 )
 import numpy as np
-from ComplexArrow import ComplexArrow, ComplexProduct
+from lib.ComplexArrow import ComplexArrow, ComplexProduct
 
-from ExternalLabeledDot import ExternalLabeledDot
-from LabeledArrow import LabeledArrow
-from TransformMatchingKeyTex import TransformMatchingKeyTex, set_transform_key
-from mathutils import clamp, rotate_cc, rotate_cw, smoothstep
-from utils import angle_label_pos, animate_arc_to, animate_replace_tex, colored_math_tex, compose_colored_tex
+from lib.ExternalLabeledDot import ExternalLabeledDot
+from lib.LabeledArrow import LabeledArrow
+from lib.TransformMatchingKeyTex import TransformMatchingKeyTex, set_transform_key
+from lib.mathutils import clamp, rotate_cc, rotate_cw, smoothstep
+from lib.utils import angle_label_pos, animate_arc_to, animate_replace_tex, colored_math_tex, compose_colored_tex
 
 c1 = np.array([1, 0, 0])
 ci = np.array([0, 1, 0])
@@ -319,23 +317,25 @@ class ComplexAdditionAndScaling(Scene):
         self.wait()
 
 class AlgebraicProps(Scene):
+    def is_quaternion_scene(self):
+        return False
+        
     def construct(self):
-        color_map = { "x": BLUE, "y": GREEN, "z": RED, r"\text{  if  }": YELLOW }
+        color_map = { "x": BLUE, "y": GREEN, "z": RED }
 
         def math_tex(*text, isolate=[], **kwargs):
-            keys = color_map.keys()
-            substrings_to_isolate = [*isolate, *keys]
-            result = MathTex(*text, substrings_to_isolate=substrings_to_isolate, **kwargs)
-            result.set_color_by_tex_to_color_map(color_map, substring=False)
-            return result
+            return colored_math_tex(*text, t2c=color_map, **kwargs)
 
         def sideline(mobj: Mobject):
             ul = mobj.get_corner(UL)
             dl = mobj.get_corner(DL)
             return Line(ul, dl), mobj
-            # return Brace(mobj, LEFT), mobj
 
-        title = Tex(r"\underline{Complex Number Algebra}")
+        is_quat = self.is_quaternion_scene()
+        number_system = "Quaternion" if is_quat else "Complex Number"
+        commutative_multiplication_condition = r"\text{ if } x \text{ or } y \text{ are real}" if is_quat else ""
+
+        title = Tex(r"\underline{ " + number_system + r" Algebra}")
         title.to_corner(UL)
         self.add(title)
 
@@ -347,22 +347,26 @@ class AlgebraicProps(Scene):
         )
         field_blurb.scale(1/2).to_corner(UR)
 
-        table = VGroup(
-            Tex("Associativity"), *sideline(math_tex(r"x + (y + z) &= (x + y) + z \\ x(yz) &= (xy)z")),
+        table_properties = VGroup(
+            Tex("Associativity"), *sideline(math_tex(r"x + (y + z) &= (x + y) + z \\ x(y z) &= (x y)z")),
             Rectangle(BLACK, 1, 0.5),
-            Tex("Commutativity"), *sideline(math_tex(r"x + y &= y + x \\ xy &= yx")),
+            Tex("Commutativity"), *sideline(tex_commute := math_tex(r"x + y &= y + x \\ x y &= y x" + commutative_multiplication_condition)),
 
             Tex(r"Identity"), *sideline(math_tex(r"x + 0 &= x \\ x \cdot 1 &= x")),
             Rectangle(BLACK, 1, 0.5),
-            Tex(r"Inverse"),  *sideline(math_tex(r"x + (-x) &= 0 \\ x \cdot \frac{1}{x} &= 1 \text{  if  } x \neq 0 ")),
+            Tex(r"Inverse"),  *sideline(math_tex(r"x + (-x) &= 0 \\ x \cdot \frac{1}{x} &= 1 \text{ if } x \neq 0")),
 
-            Tex("Distributivity"), *sideline(math_tex(r"x (y + z) &= xy + xz \\ (x + y) z &= xz + yz")),
-        ).arrange_in_grid(3, 7, col_alignments="rclcrcl", buff=(0.25, 0.5))
+            Tex("Distributivity"), *sideline(math_tex(r"x (y + z) &= x y + x z \\ (x + y) z &= x z + y z")),
+        ).arrange_in_grid(3, 7, col_alignments="rclcrcl", buff=(0.25, 0.5)).scale(2/3)
 
-        self.add(table.scale(2/3))
+        self.add(table_properties)
         self.wait()
 
-        self.play(Write(field_blurb))
+        if is_quat:
+            # self.add(index_labels(tex_commute))
+            self.play(Create(Underline(tex_commute[13:], color=RED)))
+        else:
+            self.play(Write(field_blurb))
         self.wait()
 
 class RotationPreview(Scene):
@@ -428,228 +432,6 @@ class RotationPreview(Scene):
         # self.play(
         #     LaggedStart(*[FadeOut(rect) for rect in rects], lag_ratio=0.1),
         #     run_tim=1 )
-
-        self.wait()
-
-# Unused
-class ComponentTimesI(Scene):
-    def construct(self):
-        numplane = ComplexPlane().add_coordinates()
-
-        points = [c1, ci, -c1, -ci]
-
-        steps = [
-            x.split(";") for x in [
-                "1",
-                "1 i;i",
-                "i i; i ^2; - 1",
-                "- 1 i; - i",
-                "- i i; - i ^2; - ( - 1 ); 1",
-            ]
-        ]
-        
-        def get_step_player(step_group):
-            previous_line = None
-            self.add(step_group)
-
-            for step in steps:
-                newline = True
-                for substep in step:
-                    tex = MathTex(*substep.split(" "))
-                    if previous_line == None:
-                        tex.to_corner(UL).shift(RIGHT)
-                        self.play(Write(tex))
-                    else:
-                        extra_anims = []
-                        if newline:
-                            tex.next_to(previous_line, DOWN, aligned_edge=LEFT)
-                            hbuff = LEFT * 0.5
-                            vbuff = DOWN * 0.1
-                            arc = CurvedArrow(
-                                previous_line.get_edge_center(LEFT)+hbuff+vbuff, 
-                                tex.get_edge_center(LEFT)+hbuff-vbuff,
-                                tip_length=0.12, color=BLUE
-                            )
-                            label = MathTex("i", color=BLUE).next_to(arc.get_center(), LEFT)
-                            extra_anims.append(Create(arc))
-                            extra_anims.append(Write(label))
-                            step_group.add(arc, label)
-                        else:
-                            tex.move_to(previous_line, aligned_edge=LEFT)
-                        self.play(
-                            TransformMatchingTex(previous_line, tex, shift=DOWN),
-                            *extra_anims
-                        )
-                    self.wait(.25)
-                    previous_line = tex
-                    newline = False
-                step_group.add(previous_line.copy())
-                self.remove(previous_line)
-                yield
-
-        def get_dots_and_arcs(scale, get_label):
-            def labeled_dot(point, index):
-                return ExternalLabeledDot(
-                    Dot(point * scale),
-                    get_label(point * scale, index),
-                    direction=normalize(point),
-                    distance=1
-                )
-            dots = VGroup(*map( labeled_dot, points, range(4) ))
-            arcs = []
-            for i in range(len(points)):
-                j = (i + 1) % len(points)
-                pointI = points[i] * scale
-                pointJ = points[j] * scale
-                normal = rotate_cw(pointJ - pointI)
-                color = BLUE
-                arc = CurvedArrow(pointI, pointJ, radius=scale, tip_length=.2, color=color)
-                label = MathTex("i", color=color).next_to(arc.get_center(), normal)
-                arc = VGroup(arc, label)
-                arcs.append(arc)
-            arcs = VGroup(*arcs)
-            return dots, arcs
-
-        dots, arcs = get_dots_and_arcs(1, lambda p, i: ["1", "i", "-1", "-i"][i])
-
-        self.play( Create(numplane) )
-
-        # Animate first cycle
-        step_group = VGroup()
-        step_player = get_step_player(step_group)
-        arrow = Arrow(ORIGIN, c1, color=RED, buff=0, z_index=1)
-        self.play(
-            numplane.animate.set_opacity(.25),
-            FadeIn(dots[0], arrow)
-        )
-        step_player.__next__()
-        self.wait()
-        for i in range(3):
-            step_player.__next__()
-            self.play( FadeIn(dots[i + 1]), Rotate(arrow, PI / 2, about_point=ORIGIN), FadeIn(arcs[i]))
-            self.wait()
-        step_player.__next__()
-        self.play(FadeIn(arcs[3]), Rotate(arrow, PI / 2, about_point=ORIGIN))
-        self.wait()
-
-        self.play(FadeOut(arrow, step_group))
-
-        # Scaling cycle
-        scale_tracker = ValueTracker(1)
-        def get_loop():
-            def get_label(p, i):
-                return DecimalNumber(p[0] + p[1], unit=[None, "i"][i % 2])
-            scale = scale_tracker.get_value()
-            dots, arcs = get_dots_and_arcs(scale, get_label)
-            return VGroup(dots, arcs)
-        loop = always_redraw( get_loop )
-        self.play( ReplacementTransform(VGroup(dots, arcs), loop) )
-        self.play(scale_tracker.animate.set_value(3), run_time=3)
-        self.wait()
-
-        self.play(numplane.get_axes().animate.set_opacity(1), run_time=0.5)
-        self.play(Indicate(numplane.get_axes()))
-        self.wait()
-
-        self.play(FadeOut(loop))
-        self.play(numplane.animate.set_opacity(1), run_time=0.5)
-        self.play(Indicate(numplane, 1))
-
-# Unused      
-class ArbitraryTimesI(Scene):
-    def construct(self):
-        color_map = { "a": RED, "b": GREEN }
-
-        v = np.array([3, 2, 0])
-        iv = rotate_cc(v)
-        arrow_re_ref = Arrow(ORIGIN, v[0] * c1, buff=0, color=RED)
-        arrow_im_ref = Arrow(ORIGIN, v[1] * ci, buff=0, color=GREEN)
-        arrow_im_ref.shift(arrow_re_ref.get_end())
-
-        dot_v = ExternalLabeledDot( 
-            Dot(v),  MathTex("a + bi", tex_to_color_map=color_map),
-            distance=1, z_index=1 )
-        
-        dot_iv = ExternalLabeledDot( 
-            Dot(iv),  MathTex("i(a + bi)", tex_to_color_map=color_map),
-            direction=normalize(LEFT + UP),
-            distance=1, z_index=1 )
-
-        numplane = ComplexPlane().add_coordinates().set_opacity(0.5)
-        dot = Dot(z_index=1)
-
-        eq_i_abi = MathTex(*"i ( a + bi )".split(" "), tex_to_color_map=color_map)
-        eq_i_abi.add(eq_i_abi[0].copy())
-        eq_i_abi.shift(DOWN)
-
-        eq_i_abi_2 = MathTex(*"a i + ( bi ) i".split(" "), tex_to_color_map=color_map).move_to(eq_i_abi)
-        eq_box_i_abi = VGroup(
-            SurroundingRectangle(eq_i_abi_2, color=WHITE).set_fill(BLACK, 1),
-            eq_i_abi
-        )
-
-        arrow_re = arrow_re_ref.copy()
-        arrow_im = arrow_im_ref.copy()
-
-        self.add(numplane, dot)
-        self.play( dot_v.create_animation() )
-        self.play( GrowArrow(arrow_re) )
-        self.play( GrowArrow(arrow_im) )
-        self.play(Write(eq_box_i_abi))
-
-        self.wait()
-
-        eq_box_i_abi.remove(eq_i_abi)
-        self.play( TransformMatchingTex(
-            eq_i_abi,
-            eq_i_abi_2,
-            path_arc=-90*DEGREES
-        ) )
-        self.play(
-            Rotate( arrow_re, PI / 2, about_point=arrow_re.get_start() ),
-            Rotate( arrow_im, PI / 2, about_point=arrow_im.get_start() )
-        )
-
-        self.play( arrow_im.animate.shift( arrow_re.get_end() - arrow_im.get_start() ) )
-        self.play( FadeIn( arrow_re_ref, arrow_im_ref ) )
-        self.play( dot_iv.create_animation() )
-        self.wait()
-        steps = "ai + bi^2; -b + ai".split(";")
-        for step in steps:
-            self.play( animate_replace_tex( dot_iv.label, step, color_map, ORIGIN ) )
-            self.wait()
-        self.play(FadeOut(eq_box_i_abi, eq_i_abi_2), run_time=0.5)
-
-        self.play(
-            Transform( arrow_re, arrow_re_ref ),
-            Transform( arrow_im, arrow_im_ref )
-        )
-
-        arrow_comp_ref = Arrow(ORIGIN, v, buff=0)
-        arrow_comp = arrow_comp_ref.copy()
-
-        self.play( FadeIn(arrow_comp) )
-        self.add(arrow_comp_ref)
-        arrows = VGroup(arrow_re, arrow_im, arrow_comp)
-
-        self.play( Rotate(arrows, PI / 2, about_point=ORIGIN) )
-
-        right_angle = RightAngle(arrow_comp_ref, arrow_comp, .5)
-
-        self.play( Create(right_angle) )
-        
-        step_tex = MathTex(*"( a , b ) \cdot ( - b , a )".split(" "), tex_to_color_map=color_map).move_to(ORIGIN + DOWN * 2)
-        set_transform_key(step_tex[3], "b1")
-        step_rect = SurroundingRectangle(step_tex, color=WHITE).set_fill(BLACK, opacity=1)
-        step = VGroup(step_rect, step_tex)
-        self.play( Write(step) )
-        self.wait()
-        # self.play( animate_replace_tex(step_tex, "-ab + ba", color_map, ORIGIN) )
-        step_tex2 = MathTex(*"- a b + b a".split(" "), tex_to_color_map=color_map).move_to(step_tex)
-        set_transform_key(step_tex2[-2], "b1")
-        self.play( TransformMatchingKeyTex(step_tex, step_tex2, path_arc=-90*DEGREES ) )
-        self.wait()
-        self.play( animate_replace_tex(step_tex2, "0", color_map, ORIGIN) )
 
         self.wait()
 

@@ -2,11 +2,12 @@ from re import T
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
-from mathutils import relative_quaternion2, smoothstep
+from complex import AlgebraicProps
+from lib.mathutils import relative_quaternion2, smoothstep
 import numpy as np
 
-from utils import animate_replace_tex, colored_math_tex, compose_colored_tex, play_rewrite_sequence, tex_matches
-from LabeledArrow import LabeledArrow
+from lib.utils import animate_replace_tex, colored_math_tex, compose_colored_tex, play_rewrite_sequence, tex_matches
+from lib.LabeledArrow import LabeledArrow
 
 SurfaceClass = OpenGLSurface if config.renderer == "opengl" else Surface
 
@@ -93,49 +94,57 @@ def quat_times_table(tex_to_color_map=None):
     return MathTable(
         quaternion_table,
         include_outer_lines=True,
-        element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
+        element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map),
     )
 
 class QuatDefinition(Scene):
     def construct(self):
-        tex_quat_form = MathTex("a + bi + cj + dk", tex_to_color_map=color_map)
-        tex_ijk_definition = MathTex("i^2 = j^2 = k^2 = ijk = -1", tex_to_color_map=color_map)
+        _color_map = color_map | { "{i}": RED, "+":WHITE }
+        tex_kw = { "t2c":_color_map }
+        
+        tex_form = colored_math_tex("a + b i", **tex_kw)
+        tex_ident = MathTex("i^2 = -1", tex_to_color_map=color_map)
 
-        equations = VGroup()
-        equations += tex_quat_form
-        equations += tex_ijk_definition
+        equations = VGroup(tex_form, tex_ident).arrange(DOWN).move_to(ORIGIN)
 
-        prev_line = None
-        for line in equations:
-            if prev_line:
-                line.next_to(prev_line, DOWN)
-            prev_line = line
-        equations.move_to(ORIGIN)
+        self.play( Write( tex_form ) )
+        self.play( Write( tex_ident ) )
+        self.wait()
 
-        self.play( Write( tex_quat_form ) )
-        # self.play( 
-        #     Circumscribe( VGroup(
-        #         tex_quat_form.get_part_by_tex("b"),
-        #         tex_quat_form.get_part_by_tex("k"),
-        #     ), run_time=3 ),
-        #     run_time=3
-        # )
-        self.play( Write( tex_ijk_definition ) )
+        self.play( TransformMatchingTex(tex_form, tex_form := colored_math_tex("a + b i + c j + d k", **tex_kw).move_to(tex_form) ) )
+        self.wait()
+        self.play( TransformMatchingTex(tex_ident, tex_ident := colored_math_tex("i^2 = j^2 = k^2 = {i} j k = -1", **tex_kw).move_to(tex_ident) ) )
+        self.wait()
 
-        ijk_table = pure_quat_times_table(color_map).scale(0.75).move_to(RIGHT * 3)
-        cross_table = vec_cross_table(color_map) #.scale(0.5).move_to(LEFT * 3)
-        dot_table = vec_dot_table(color_map) #.scale(0.5).move_to(LEFT * 3)
+        # self.add(index_labels(tex_form))
+        rect_vector_part = SurroundingRectangle(tex_form[2:])
+        tex_vector_part = Tex("vector part", color=YELLOW).scale(0.5).next_to(rect_vector_part, UP, buff=0.125)
+        vector_part_group = VGroup(rect_vector_part, tex_vector_part)
+        self.play(Write(vector_part_group))
+        self.wait()
+
+        tex_vec_quat = colored_math_tex("x i + y j + z k", **tex_kw)
+        rect_vec_quat = SurroundingRectangle(tex_vec_quat)
+        tex_vec_quat_label = Tex('vector quaternion', color=YELLOW).scale(0.5).next_to(rect_vec_quat, UP, buff=0.125)
+        vec_quat_group = VGroup(tex_vec_quat, rect_vec_quat, tex_vec_quat_label).next_to(tex_ident, DOWN, buff=0.5)
+        self.play(Write(vec_quat_group))
+        self.wait()
+
+        self.play(FadeOut(tex_form, vector_part_group, vec_quat_group))
+
+        title = Tex(r"\underline{Vector Quaternion Multiplication}").to_corner(UL)
+        self.play(FadeIn(title))
+
+        ijk_table = pure_quat_times_table(color_map).scale(2/3).move_to(RIGHT * 3)
+        cross_table = vec_cross_table(color_map)
+        dot_table = vec_dot_table(color_map)
         dot_table.next_to(cross_table, DOWN)
-        vec_tables = VGroup(cross_table, dot_table).scale(.6).move_to(LEFT * 3)
+        vec_tables = VGroup(cross_table, dot_table).scale(.5).move_to(LEFT * 3)
 
-        rect = SurroundingRectangle(tex_ijk_definition)
-        tex_ijk_definition.add(rect)
-        self.play(Create(rect))
-
-        self.play( equations.animate.move_to(LEFT * 3) )
+        self.play( tex_ident.animate.move_to(LEFT * 3) )
         self.play( Create(ijk_table) )
         self.wait(3)
-        self.play( FadeOut(equations) )
+        self.play( FadeOut(tex_ident) )
         self.play( FadeIn(vec_tables) )
         self.wait()
 
@@ -144,6 +153,103 @@ class QuatDefinition(Scene):
         self.play( Write(equation_quat_cross_dot) )
 
         self.wait()
+
+class QuatProps(AlgebraicProps):
+    def is_quaternion_scene(self):
+        return True
+
+# Unused
+class TableDerivation(Scene):
+    def construct(self):
+        _color_map = color_map | { 
+            "{i}":RED, "{j}":GREEN, "{k}":BLUE,
+            "ii":RED, "jj":GREEN, "kk":BLUE,
+            "{(-1)}":WHITE, "(-1)":WHITE,
+            "+":WHITE, "-":WHITE, "=":WHITE
+        }
+        tex_kw = { "t2c":_color_map }
+
+        tex_ident = colored_math_tex("i^2 = j^2 = k^2 = i j k =-1", **tex_kw)
+        table = pure_quat_times_table(color_map).scale(0.5)        
+        VGroup(tex_ident, table).arrange(buff=1)
+
+        def get_table_entry(i, j):
+            return table.get_entries((i + 2, j + 2))
+
+        for i in range(3):
+            for j in range(3):
+                get_table_entry(i, j).set_opacity(0)
+
+        # self.play(Write(tex_ident))
+        self.add(tex_ident)
+        self.play(FadeIn(table))
+
+        # Add squares of i,j,k to table.
+        for i in range(3):
+            self.remove(get_table_entry(i, i))
+        self.play(LaggedStart(*[
+            TransformMatchingTex( tex_ident.copy(), get_table_entry(i, i).set_opacity(1), shift=ORIGIN )
+            for i in range(3)
+        ]), run_time=1)
+
+        return
+
+        def relabel(expression: str, t: str, u: str, v: str):
+            return expression.replace("t", t).replace("u", u).replace("v", v)
+        
+        def play_product_derivation(t: str, u: str, v: str, table_i: int, table_j: int):
+            get_tex = lambda string: colored_math_tex( relabel(string, t, u ,v), **tex_kw )
+            tex = get_tex("t u v = - 1")
+            tex.next_to(tex_ident, DOWN, buff=0.5)
+            self.play(Write(tex))
+
+            def transform(next_tex_string: str, shift=ORIGIN, **kwargs):
+                next_tex = get_tex(next_tex_string)
+                next_tex.move_to(tex)
+                key_map = {"ii":"(-1)", "jj":"(-1)", "kk":"(-1)"}
+                self.play(TransformMatchingTex(tex, next_tex, **kwargs, shift=shift, key_map=key_map))
+                return next_tex
+            
+            def replace(next_tex_string: str):
+                next_tex = get_tex(next_tex_string)
+                next_tex.move_to(tex)
+                self.remove(tex)
+                self.add(next_tex)
+                return next_tex
+
+            tex = transform( "{t} t u v = -{t}" )
+            tex = replace( "tt u v = - t" )
+            tex = transform( "- u v = - t" )
+            tex = transform( "u v = t" )
+
+            entry = get_table_entry(table_i, table_j)
+            entry.set_opacity(1)
+            self.remove(entry)
+            self.play( TransformMatchingTex(tex.copy(), entry, shift=ORIGIN) )
+
+            self.play(FadeOut(tex))
+            tex = get_tex("t u v = - 1").move_to(tex)
+            self.play(FadeIn(tex))
+            
+            tex = transform( "t u v {v}{u} = - {v}{u}", shift=DOWN )
+            tex = replace( "t u vv u = - v u" )
+            tex = transform( "t u (-1) u = - v u" )
+            tex = transform( "t u u (-1) = - v u", path_arc=90*DEGREES )
+            tex = replace( "t uu (-1) = - v u" )
+            tex = transform( "t {(-1)} (-1) = - v u" )
+            tex = transform( "t = - v u" )
+            tex = transform( "v u = - t", path_arc=90*DEGREES )
+
+            entry = get_table_entry(table_j, table_i)
+            entry.set_opacity(1)
+            self.remove(entry)
+            self.play( TransformMatchingTex(tex.copy(), entry, shift=ORIGIN) )
+
+            self.play(FadeOut(tex))
+        
+        play_product_derivation("i", "j", "k", 1, 2)
+        play_product_derivation("j", "k", "i", 2, 0)
+        play_product_derivation("k", "i", "j", 0, 1)
 
 class ThreeD(ThreeDScene):
     def construct(self):
@@ -630,6 +736,7 @@ class RotationFormula(Scene):
             run_time=1.5
         )
 
+# Unused
 class Generalizing(Scene):
     def construct(self):
         _color_map = color_map | {"ii":RED, "{i}":RED, "-1": WHITE, "=": WHITE}
