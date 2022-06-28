@@ -2,6 +2,7 @@ from re import T
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
+from sympy import content
 from complex import AlgebraicProps
 from lib.mathutils import relative_quaternion2, smoothstep
 import numpy as np
@@ -117,20 +118,29 @@ class QuatDefinition(Scene):
         self.wait()
 
         # self.add(index_labels(tex_form))
-        rect_vector_part = SurroundingRectangle(tex_form[2:])
-        tex_vector_part = Tex("vector part", color=YELLOW).scale(0.5).next_to(rect_vector_part, UP, buff=0.125)
-        vector_part_group = VGroup(rect_vector_part, tex_vector_part)
-        self.play(Write(vector_part_group))
+        # self.wait()
+
+        def labeled_rect(contents: Mobject, label: str):
+            rect = SurroundingRectangle(contents)
+            texlabel = Tex(label, color=YELLOW).scale(0.5).next_to(rect, UP, buff=0.125)
+            return VGroup(rect, texlabel)
+
+        vector_part_rect = labeled_rect(tex_form[2:], "vector part")
+        self.play(Write(vector_part_rect))
+        self.wait()
+
+        real_part_rect = labeled_rect(tex_form[0], "real part")
+        real_part_rect[1].move_to(vector_part_rect[1], coor_mask=UP)
+        self.play(Write(real_part_rect))
         self.wait()
 
         tex_vec_quat = colored_math_tex("x i + y j + z k", **tex_kw)
-        rect_vec_quat = SurroundingRectangle(tex_vec_quat)
-        tex_vec_quat_label = Tex('vector quaternion', color=YELLOW).scale(0.5).next_to(rect_vec_quat, UP, buff=0.125)
-        vec_quat_group = VGroup(tex_vec_quat, rect_vec_quat, tex_vec_quat_label).next_to(tex_ident, DOWN, buff=0.5)
+        vec_quat_rect = labeled_rect(tex_vec_quat, "vector quaternion")
+        vec_quat_group = VGroup(tex_vec_quat, vec_quat_rect).next_to(tex_ident, DOWN, buff=0.5)
         self.play(Write(vec_quat_group))
         self.wait()
 
-        self.play(FadeOut(tex_form, vector_part_group, vec_quat_group))
+        self.play(FadeOut(tex_form, vector_part_rect, real_part_rect, vec_quat_group))
 
         title = Tex(r"\underline{Vector Quaternion Multiplication}").to_corner(UL)
         self.play(FadeIn(title))
