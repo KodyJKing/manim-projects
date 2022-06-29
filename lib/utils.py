@@ -1,4 +1,4 @@
-from typing import Callable, Iterable, Tuple
+from typing import Callable, Iterable, List, Tuple
 from manim import *
 import re
 
@@ -18,11 +18,11 @@ def tex_matches(tex: MathTex, *parts):
 def angle_label_pos(line1, line2, radius, **kwargs):
     return Angle( line1, line2, radius=radius, **kwargs).point_from_proportion(0.5)
 
-def colored_math_tex(*tex_strings, t2c:dict[str, str]={}, **kwargs):
+def colored_math_tex(*tex_strings, words:List[str]=[], t2c:dict[str, str]={}, **kwargs):
     """MathTex, but with better coloring behaviour."""
 
     def get_tex_strings():
-        keys = t2c.keys()
+        keys = [*words, *t2c.keys()]
         if len(keys) == 0:
             return tex_strings
         word_patterns = [
@@ -41,6 +41,13 @@ def colored_math_tex(*tex_strings, t2c:dict[str, str]={}, **kwargs):
 
     result = MathTex(*tex_strings, **kwargs)
     result.set_color_by_tex_to_color_map(t2c, substring=False)
+
+    # Fix isolated closing brackets. These break Write animations.
+    for mob in result.submobjects:
+        tex_string = mob.tex_string.strip(" ")
+        if tex_string == "}":
+            result.remove(mob)
+
     return result
 
 def compose_colored_tex(*color_tex: str, **kwargs):

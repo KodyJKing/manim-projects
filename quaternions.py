@@ -1,9 +1,11 @@
 from re import T
+from ssl import VERIFY_ALLOW_PROXY_CERTS
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
 from sympy import content
 from complex import AlgebraicProps
+from lib.TexContainer import TexContainer
 from lib.mathutils import relative_quaternion2, smoothstep
 import numpy as np
 
@@ -104,17 +106,13 @@ class QuatDefinition(Scene):
         tex_kw = { "t2c":_color_map }
         
         tex_form = colored_math_tex("a + b i", **tex_kw)
-        tex_ident = MathTex("i^2 = -1", tex_to_color_map=color_map)
-
-        equations = VGroup(tex_form, tex_ident).arrange(DOWN).move_to(ORIGIN)
+        # tex_ident = colored_math_tex("i^2 = j^2 = k^2 = i j k = -1", **tex_kw)
+        # equations = VGroup(tex_form, tex_ident).arrange(DOWN).move_to(ORIGIN)
 
         self.play( Write( tex_form ) )
-        self.play( Write( tex_ident ) )
         self.wait()
 
         self.play( TransformMatchingTex(tex_form, tex_form := colored_math_tex("a + b i + c j + d k", **tex_kw).move_to(tex_form) ) )
-        self.wait()
-        self.play( TransformMatchingTex(tex_ident, tex_ident := colored_math_tex("i^2 = j^2 = k^2 = {i} j k = -1", **tex_kw).move_to(tex_ident) ) )
         self.wait()
 
         # self.add(index_labels(tex_form))
@@ -136,14 +134,23 @@ class QuatDefinition(Scene):
 
         tex_vec_quat = colored_math_tex("x i + y j + z k", **tex_kw)
         vec_quat_rect = labeled_rect(tex_vec_quat, "vector quaternion")
-        vec_quat_group = VGroup(tex_vec_quat, vec_quat_rect).next_to(tex_ident, DOWN, buff=0.5)
+        vec_quat_group = VGroup(tex_vec_quat, vec_quat_rect).next_to(tex_form, DOWN, buff=0.5)
         self.play(Write(vec_quat_group))
         self.wait()
 
         self.play(FadeOut(tex_form, vector_part_rect, real_part_rect, vec_quat_group))
 
-        title = Tex(r"\underline{Vector Quaternion Multiplication}").to_corner(UL)
+class QuatMultiplication(Scene):
+    def construct(self):
+        _color_map = color_map | { "{i}": RED, "+":WHITE }
+        tex_kw = { "t2c":_color_map }
+
+        title = Tex(r"Quaternion Multiplication").to_corner(UL)
         self.play(FadeIn(title))
+
+        tex_ident = colored_math_tex("i^2 = j^2 = k^2 = i j k = -1", **tex_kw)
+        self.play( Write( tex_ident ) )
+        self.wait()
 
         ijk_table = pure_quat_times_table(color_map).scale(2/3).move_to(RIGHT * 3)
         cross_table = vec_cross_table(color_map)
@@ -161,27 +168,29 @@ class QuatDefinition(Scene):
         equation_quat_cross_dot = MathTex(r" uv = u \times v - u \cdot v ", tex_to_color_map=color_map)
         equation_quat_cross_dot.next_to(ijk_table, UP)
         self.play( Write(equation_quat_cross_dot) )
-
         self.wait()
+
+        self.play(FadeOut(ijk_table, vec_tables))
+        self.play(equation_quat_cross_dot.animate.move_to(ORIGIN))
 
 class QuatProps(AlgebraicProps):
     def is_quaternion_scene(self):
         return True
 
-# Unused
 class TableDerivation(Scene):
     def construct(self):
         _color_map = color_map | { 
             "{i}":RED, "{j}":GREEN, "{k}":BLUE,
             "ii":RED, "jj":GREEN, "kk":BLUE,
             "{(-1)}":WHITE, "(-1)":WHITE,
+            "-1":WHITE, "1":WHITE,
             "+":WHITE, "-":WHITE, "=":WHITE
         }
         tex_kw = { "t2c":_color_map }
 
-        tex_ident = colored_math_tex("i^2 = j^2 = k^2 = i j k =-1", **tex_kw)
-        table = pure_quat_times_table(color_map).scale(0.5)        
-        VGroup(tex_ident, table).arrange(buff=1)
+        tex_ident = colored_math_tex("i^2 = j^2 = k^2 = i j k = -1", **tex_kw)
+        table = pure_quat_times_table(color_map).scale(0.5).to_corner(UR)
+        # VGroup(tex_ident, table).arrange(buff=1)
 
         def get_table_entry(i, j):
             return table.get_entries((i + 2, j + 2))
@@ -190,7 +199,7 @@ class TableDerivation(Scene):
             for j in range(3):
                 get_table_entry(i, j).set_opacity(0)
 
-        # self.play(Write(tex_ident))
+        self.play(Write(tex_ident))
         self.add(tex_ident)
         self.play(FadeIn(table))
 
@@ -202,64 +211,125 @@ class TableDerivation(Scene):
             for i in range(3)
         ]), run_time=1)
 
-        return
-
-        def relabel(expression: str, t: str, u: str, v: str):
-            return expression.replace("t", t).replace("u", u).replace("v", v)
-        
-        def play_product_derivation(t: str, u: str, v: str, table_i: int, table_j: int):
-            get_tex = lambda string: colored_math_tex( relabel(string, t, u ,v), **tex_kw )
-            tex = get_tex("t u v = - 1")
-            tex.next_to(tex_ident, DOWN, buff=0.5)
-            self.play(Write(tex))
-
-            def transform(next_tex_string: str, shift=ORIGIN, **kwargs):
-                next_tex = get_tex(next_tex_string)
-                next_tex.move_to(tex)
+        def animate_permutation():
+            def permute_animations(tc: TexContainer, left=True):
                 key_map = {"ii":"(-1)", "jj":"(-1)", "kk":"(-1)"}
-                self.play(TransformMatchingTex(tex, next_tex, **kwargs, shift=shift, key_map=key_map))
-                return next_tex
+
+                transform = lambda next, **kwargs: tc.transform(next, key_map=key_map, **kwargs)
+                replace = lambda next: tc.replace(next)
+
+                yield Write(tc)
+
+                if left:
+                    yield transform( "{i} i j k {i} = {i}( - 1 ){i}", shift=DOWN )
+                    yield transform( "{i} i j k {i} = -{i}{i}", shift=DOWN )
+                    yield replace( "ii j k i = -{i}{i}" )
+                    yield transform( "(-1) j k i = 1" )
+                    yield replace( "( - 1 ) j k i = 1" )
+                    yield transform( "j k i = - 1", shift=DOWN )
+                else:
+                    yield transform( "{k} i j k {k} = {k}( - 1 ){k}", shift=DOWN )
+                    yield transform( "{k} i j k {k} = -{k}{k}", shift=DOWN )
+                    yield replace( "k i j kk = -{k}{k}" )
+                    yield transform( "k i j (-1) = 1" )
+                    yield replace( "k i j ( - 1 ) = 1" )
+                    yield transform( "k i j = - 1", shift=DOWN )
+                
+            get_tex = lambda string: colored_math_tex( string, **tex_kw )
+            left_eq = TexContainer( colored_math_tex("i j k = - 1", **tex_kw), get_tex)
+            right_eq = TexContainer( colored_math_tex("i j k = - 1", **tex_kw), get_tex)
+            VGroup(left_eq, right_eq).arrange(DOWN).next_to(tex_ident, DOWN, buff=0.5)
+            left_animations = permute_animations(left_eq, True)
+            right_animations = permute_animations(right_eq, False)
+
+            for l, r in zip(left_animations, right_animations):
+                self.play(l, r)
+
+            return left_eq, right_eq
+
+        left_eq, right_eq = animate_permutation()
+        self.wait()
+
+        _tex_ident = colored_math_tex(r"& i^2 = j^2 = k^2 = -1 \\ & i j k = j k i = k i j = -1", **tex_kw).to_corner(UL)
+        self.play(TransformMatchingTex(VGroup(tex_ident, left_eq.tex, right_eq.tex), _tex_ident))
+        tex_ident = _tex_ident
+
+        def animate_products():
+            def relabel(expression: str, t: str, u: str, v: str):
+                return expression.replace("t", t).replace("u", u).replace("v", v)
+
+            def product_anims(tex: MathTex, t: str, u: str, v: str, table_i: int, table_j: int):
+                get_tex = lambda string, **kwargs: colored_math_tex( relabel(string, t, u ,v), **tex_kw, **kwargs )
+                squares_to_minus_one = {"ii":"(-1)", "jj":"(-1)", "kk":"(-1)"}
+                squares_to_minus = {"ii":"{-}", "jj":"{-}", "kk":"{-}"}
+                
+                tc = TexContainer(tex, get_tex)
+                yield Write(tc)
+
+                replace = lambda next: tc.replace(next)
+                transform = lambda next, key_map=squares_to_minus_one, words=[], **kwargs: tc.transform(
+                    get_tex(next, words=words), key_map=key_map, **kwargs)
+
+                yield transform( "{t} t u v = -{t}", shift=DOWN )
+                yield replace( "tt u v = - t" )
+                yield transform( "{-} u v = - t", words=["{-}"], key_map= squares_to_minus )
+                yield transform( "u v = t" )
+
+                entry = get_table_entry(table_i, table_j)
+                entry.set_opacity(1)
+                self.remove(entry)
+                yield TransformMatchingTex(tc.tex.copy(), entry, shift=ORIGIN), {"lagged_start":True}
+
+                yield Wait()
+
+                next_tc = TexContainer( "t u v = - 1", get_tex ).set_opacity(0)
+                center = tc.get_center()
+                yield VGroup(tc, next_tc).animate().arrange(buff=1.5).move_to(center)
+                old_tc = tc
+                tc = next_tc
+                yield FadeIn(tc.set_opacity(1))
+                
+                yield transform( "t u v {v}{u} = - {v}{u}", shift=DOWN )
+                yield replace( "t u vv u = - v u" )
+                yield transform( "t u (-1) u = - v u" )
+                yield transform( "t u u (-1) = - v u", path_arc=90*DEGREES )
+                yield replace( "t uu (-1) = - v u" )
+                yield transform( "t {(-1)} (-1) = - v u" )
+                yield transform( "t = - v u" )
+                yield transform( "v u = - t", path_arc=90*DEGREES )
+
+                entry = get_table_entry(table_j, table_i)
+                entry.set_opacity(1)
+                self.remove(entry)
+                yield TransformMatchingTex(tc.tex.copy(), entry, shift=ORIGIN), {"lagged_start":True}
+
+                yield Wait()
+
+                yield FadeOut(old_tc, tc)
             
-            def replace(next_tex_string: str):
-                next_tex = get_tex(next_tex_string)
-                next_tex.move_to(tex)
-                self.remove(tex)
-                self.add(next_tex)
-                return next_tex
+            eq1 = colored_math_tex("i j k = - 1", **tex_kw)
+            eq2 = colored_math_tex("j k i = - 1", **tex_kw)
+            eq3 = colored_math_tex("k i j = - 1", **tex_kw)
 
-            tex = transform( "{t} t u v = -{t}" )
-            tex = replace( "tt u v = - t" )
-            tex = transform( "- u v = - t" )
-            tex = transform( "u v = t" )
+            VGroup(eq1, eq2, eq3).arrange(DOWN)
 
-            entry = get_table_entry(table_i, table_j)
-            entry.set_opacity(1)
-            self.remove(entry)
-            self.play( TransformMatchingTex(tex.copy(), entry, shift=ORIGIN) )
+            anims1 = product_anims(eq1, "i", "j", "k", 1, 2)
+            anims2 = product_anims(eq2, "j", "k", "i", 2, 0)
+            anims3 = product_anims(eq3, "k", "i", "j", 0, 1)
+            for a, b, c in zip(anims1, anims2, anims3):
+                options = {}
+                if isinstance(a, tuple):
+                    a, options = a
+                    b, _ = b
+                    c, _ = c
+                if options.get("lagged_start", False):
+                    self.play(LaggedStart(a, b, c))
+                else:
+                    self.play(a, b, c)
 
-            self.play(FadeOut(tex))
-            tex = get_tex("t u v = - 1").move_to(tex)
-            self.play(FadeIn(tex))
-            
-            tex = transform( "t u v {v}{u} = - {v}{u}", shift=DOWN )
-            tex = replace( "t u vv u = - v u" )
-            tex = transform( "t u (-1) u = - v u" )
-            tex = transform( "t u u (-1) = - v u", path_arc=90*DEGREES )
-            tex = replace( "t uu (-1) = - v u" )
-            tex = transform( "t {(-1)} (-1) = - v u" )
-            tex = transform( "t = - v u" )
-            tex = transform( "v u = - t", path_arc=90*DEGREES )
+        animate_products()
 
-            entry = get_table_entry(table_j, table_i)
-            entry.set_opacity(1)
-            self.remove(entry)
-            self.play( TransformMatchingTex(tex.copy(), entry, shift=ORIGIN) )
-
-            self.play(FadeOut(tex))
-        
-        play_product_derivation("i", "j", "k", 1, 2)
-        play_product_derivation("j", "k", "i", 2, 0)
-        play_product_derivation("k", "i", "j", 0, 1)
+        self.play( FadeOut(tex_ident), table.animate.move_to(ORIGIN).scale(2/3 / 0.5) )
 
 class ThreeD(ThreeDScene):
     def construct(self):
@@ -715,7 +785,7 @@ class DualPlanes(Scene):
 
 class RotationFormula(Scene):
     def construct(self):
-        tex_title = Tex(r"\underline{Rotation Formula}").to_corner(UL)
+        tex_title = Tex(r"Rotation Formula").to_corner(UL)
         self.add(tex_title)
 
         lines = VGroup(

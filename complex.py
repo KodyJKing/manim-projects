@@ -335,7 +335,7 @@ class AlgebraicProps(Scene):
         number_system = "Quaternion" if is_quat else "Complex Number"
         commutative_multiplication_condition = r"\text{ if } x \text{ or } y \text{ are real}" if is_quat else ""
 
-        title = Tex(r"\underline{ " + number_system + r" Algebra}")
+        title = Tex(number_system + r" Algebra")
         title.to_corner(UL)
         self.add(title)
 
