@@ -557,7 +557,25 @@ class ThreeDRework(ThreeDScene):
 
         self.move_camera(phi=65*DEGREES, theta=45*DEGREES)
 
-        # TODO: Explain the problem with trying to rotate vectors outside the tb plane this way.
+        self.play(FadeIn(arrow_n, tex_n))
+
+        # Explain the problem with trying to rotate vectors outside the tb plane this way.
+
+        tex_perp = get_tex(r"\hat{n}(a \hat{n})", " = -a \hat{n} \cdot \hat{n} = -a")
+        tex_perp.set_stroke(BLACK, 5, 1, True)
+        self.add_fixed_in_frame_mobjects(tex_perp)
+        tex_perp.to_edge(LEFT)
+        tex_perp[4:].set_opacity(0)
+        self.play(Write(tex_perp[:4]))
+        self.wait()
+
+        arrow_an = Arrow(ORIGIN, vi * 3, buff=0).set_z_index(-1)
+        an_label = get_arrow_label(arrow_an, get_tex("a \hat{n}").set_stroke(BLACK, 5, 1, True) )
+        self.add_fixed_orientation_mobjects(an_label)
+        self.play(GrowArrow(arrow_an), Write(an_label))
+        self.wait()
+
+        self.play(Write(tex_perp[4:].set_opacity(1)))
 
 class ThreeD(ThreeDScene):
     def construct(self):
