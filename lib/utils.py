@@ -7,8 +7,15 @@ def animate_replace_tex(tex: MathTex, text_or_tex: str | MathTex, tex_to_color_m
         text_or_tex = MathTex( text_or_tex, tex_to_color_map=tex_to_color_map )
     return tex.animate.become( text_or_tex.move_to(tex, aligned_edge) )
 
-def animate_arc_to(mobj, target):
-    return MoveAlongPath( mobj, ArcBetweenPoints( mobj.get_center(), target.get_center() ) )
+def animate_arc_to(mobj: Mobject, target: Mobject, aligned_edge=ORIGIN):
+    offset = mobj.get_center() - mobj.get_edge_center(aligned_edge)
+    return MoveAlongPath( mobj, ArcBetweenPoints( mobj.get_center(), target.get_edge_center(aligned_edge) + offset ) )
+
+def swap_anim(mobj1: Mobject, mobj2: Mobject, aligned_edge=ORIGIN):
+    return AnimationGroup(
+        animate_arc_to(mobj1, mobj2, aligned_edge=aligned_edge),
+        animate_arc_to(mobj2, mobj1, aligned_edge=aligned_edge)
+    )
 
 def tex_matches(tex: MathTex, *parts):
     matches = [ tex.get_part_by_tex(part) for part in parts ]

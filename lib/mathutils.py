@@ -34,6 +34,7 @@ def relative_quaternion( v1, v2, fallback_axis=None ):
     return np.array([dot, *cross])
 
 def relative_quaternion2( forward1, up1, forward2, up2 ):
+    """ Finds the relative rotation between two orientations given their forward and up directions. """
     forward_quat = relative_quaternion(forward1, forward2)
     up1_by_forward_quat = rotate_vec_by_quat(up1, forward_quat)
     up_quat = relative_quaternion( up1_by_forward_quat, up2, fallback_axis=forward2 )

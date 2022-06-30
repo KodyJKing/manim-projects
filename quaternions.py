@@ -1,15 +1,13 @@
-from re import T
-from ssl import VERIFY_ALLOW_PROXY_CERTS
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
-from sympy import content
 from complex import AlgebraicProps
 from lib.TexContainer import TexContainer
+from lib.angle3D import angle3D
 from lib.mathutils import relative_quaternion2, smoothstep
 import numpy as np
 
-from lib.utils import animate_replace_tex, colored_math_tex, compose_colored_tex, play_rewrite_sequence, tex_matches
+from lib.utils import animate_arc_to, animate_replace_tex, colored_math_tex, compose_colored_tex, play_rewrite_sequence, swap_anim, tex_matches
 from lib.LabeledArrow import LabeledArrow
 
 SurfaceClass = OpenGLSurface if config.renderer == "opengl" else Surface
@@ -330,6 +328,236 @@ class TableDerivation(Scene):
         animate_products()
 
         self.play( FadeOut(tex_ident), table.animate.move_to(ORIGIN).scale(2/3 / 0.5) )
+
+class UComplex(Scene):
+    def construct(self):
+        UCOLOR = YELLOW
+
+        _color_map = color_map | { 
+            r"\hat{u}": UCOLOR,
+            r"\vec{a}":RED, r"\vec{b}":GREEN, r"\hat{n}":BLUE
+        }
+        sintheta = r"sin(\theta)"
+        costheta = r"cos(\theta)"
+        words = ["1", "{1}", "-1", sintheta, costheta, "a", "b", "c", "d"]
+        get_tex = lambda string, words=words, **kwargs: colored_math_tex(string, t2c=_color_map, words=words, **kwargs)
+
+        tc_u = TexContainer(r"\hat{u}", get_tex)
+        tex_cross = get_tex(r"\vec{a} \times \vec{b} = \hat{n}|\vec{a}||\vec{b}|sin(\theta)").to_corner(UL)
+        tex_dot = get_tex(r"\vec{a} \cdot \vec{b} = |\vec{a}||\vec{b}|cos(\theta)").next_to(tex_cross, DOWN)
+
+        self.play(Write(tc_u))
+        self.play(tc_u.transform(r"\hat{u}\hat{u}"))
+        self.wait()
+
+        self.play(tc_u.transform(r"\hat{u} \times \hat{u} - \hat{u} \cdot \hat{u}"))
+
+        self.play(FadeIn(tex_cross))
+        self.play(Indicate(tex_cross.get_part_by_tex(sintheta)))
+        self.wait()
+
+        to_remove = tc_u.tex[:3]
+        for part in to_remove:
+            if hasattr(part, "tex_string"):
+                part.tex_string += "_"
+        self.play(tc_u.transform(r"- \hat{u} \cdot \hat{u}"))
+
+        self.play(Write(tex_dot))
+        self.play(Indicate(tex_dot.get_part_by_tex(costheta)))
+        self.wait()
+
+        self.play(tc_u.transform(r"- |\hat{u}||\hat{u}|"))
+        self.play(tc_u.transform(r"-1", match=False))
+        self.wait(0.5)
+        self.play(FadeOut(tex_cross, tex_dot), tc_u.transform(r"\hat{u}^2 = -1"))
+        self.wait()
+
+        tex_ucomp = get_tex(r"a + b\hat{u}").next_to(tc_u, DOWN)
+        self.play(Write(tex_ucomp))
+
+        ucomp_group = VGroup(tc_u, tex_ucomp)
+        comp_group = VGroup(
+            get_tex(r"i^2 = -1"),
+            get_tex(r"a + b i")
+        ).arrange(DOWN).next_to(ucomp_group)
+
+        groups = VGroup(
+            ucomp_group,
+            arrow := get_tex(r"\leftrightarrow").set_opacity(0),
+            comp_group.set_opacity(0)
+        )
+        self.play(groups.animate.arrange(buff=0.5))
+
+        arrow.set_opacity(1)
+        comp_group.set_opacity(1)
+
+        self.play(Write(VGroup(arrow, comp_group)))
+
+        self.play(
+            Create( rect := SurroundingRectangle( comp_group, color=RED ) ),
+            Write( label := Tex("complex-numbers", color=RED)
+                .scale(0.5).next_to(rect, UP, buff=0.1) ),
+        )
+        self.play(
+            Create( urect := SurroundingRectangle( ucomp_group, color=UCOLOR ) ),
+            Write( ulabel := Tex("u-complex-numbers", color=UCOLOR)
+                .scale(0.5).next_to(urect, UP, buff=0.1) ),
+        )
+
+        groups.add(rect, label, urect, ulabel)
+
+        self.play( groups.animate.to_edge(UP) )
+
+        def play_commute_proof():
+            color_map2 = {r"\hat{u}":UCOLOR, "a_2":GRAY, "b_2":GRAY, "v":GRAY}
+            words2 = "a_1 b_1 a_2 b_2".split(" ")
+            get_tex2 = lambda string: colored_math_tex(string, words=words2, t2c=color_map2)
+
+            tc_commute = TexContainer(r"(a_1 + b_1 \hat{u})(a_2 + b_2 \hat{u})", get_tex2)
+            self.play(Write(tc_commute))
+
+            tc_commute_2 = TexContainer(r"a_1 a_2 + a_1 b_2 \hat{u} + b_1 \hat{u} a_2 + b_1 \hat{u} b_2 \hat{u}", get_tex2).next_to(tc_commute, DOWN, 0.5)
+            self.play( TransformMatchingTex(tc_commute.tex.copy(), tc_commute_2.tex, path_arc=30*DEGREES) )
+            self.wait()
+
+            tc_commute_3 = tc_commute_2.copy()
+            self.play(tc_commute_3.animate.next_to(tc_commute_2, DOWN, 0.5))
+
+            self.play( tc_commute_3.transform(r"a_2 a_1 + b_2 \hat{u} a_1 + a_2 b_1 \hat{u} + b_2 \hat{u} b_1 \hat{u}", path_arc=90*DEGREES) )
+            self.play(swap_anim( tc_commute_3.tex[3:6], tc_commute_3.tex[7:10] ))
+            self.wait()
+
+            tc_commuted = TexContainer(r"(a_2 + b_2 \hat{u})(a_1 + b_1 \hat{u})", get_tex2).next_to(tc_commute_3, DOWN, 0.5)
+            self.play( TransformMatchingTex(tc_commute_3.tex.copy(), tc_commuted.tex, path_arc=30*DEGREES) )
+            self.wait()
+
+            self.play(
+                FadeOut(tc_commute_2, tc_commute_3),
+                VGroup(tc_commute, Tex("="), tc_commuted).animate.arrange()
+            )
+        play_commute_proof()
+
+class ThreeDRework(ThreeDScene):
+    def construct(self):
+        VCOLOR = WHITE
+
+        self.set_camera_orientation(phi=65*DEGREES, theta=20*DEGREES)
+
+        # self.begin_ambient_camera_rotation(0.02 * 6)
+        # self.begin_3dillusion_camera_rotation(0.25)
+
+        nhat = r"\hat{n}"
+        that = r"\hat{t}"
+        bhat = r"\hat{b}"
+        _color_map = color_map | {
+            nhat:RED, that:GREEN, bhat:BLUE,
+            "v": VCOLOR
+        }
+        def get_tex(*string):
+            return colored_math_tex(*string, t2c=_color_map)
+
+        axes = ThreeDAxes(x_range=[-5, 5], y_range=[-5, 5], z_range=[-5, 5], x_length=10, y_length=10, z_length=10)
+        numplane = NumberPlane(x_range=[-10, 10], y_range=[-10, 10])
+        numplane.set_opacity(0).rotate(PI/2, vj)
+        self.add(numplane)
+        self.add(axes)
+
+        arrow_n = Arrow(ORIGIN, vi, buff=0, color=RED)
+        arrow_t = Arrow(ORIGIN, vj, buff=0, color=GREEN).rotate(PI/2, vj)
+        arrow_b = Arrow(ORIGIN, vk, buff=0, color=BLUE)
+        arrow_v = Arrow(ORIGIN, 2*LEFT + UP, buff=0, color=VCOLOR, tip_length=0.25).rotate(PI/2, vj, ORIGIN)
+
+        def position_arrow_label(arrow, tex, dist=0.5):
+            return tex.move_to(arrow.get_end() + arrow.get_unit_vector() * dist)
+        def get_arrow_label(arrow, tex, dist=.5):
+            get_tex = tex if callable(tex) else lambda: tex.copy()
+            return always_redraw(lambda: position_arrow_label(arrow, get_tex(), dist))
+
+        tex_n = get_arrow_label(arrow_n, get_tex(nhat).set_stroke(BLACK, 5, 1, True))
+        tex_t = get_arrow_label(arrow_t, get_tex(that).set_stroke(BLACK, 5, 1, True))
+        tex_b = get_arrow_label(arrow_b, get_tex(bhat).set_stroke(BLACK, 5, 1, True))
+        tex_v = get_arrow_label(arrow_v, get_tex("v").set_stroke(BLACK, 5, 1, True), 0.25)
+        self.add_fixed_orientation_mobjects( tex_n, tex_t, tex_b )
+
+        self.play( FadeIn( arrow_n, arrow_t, arrow_b), Create(tex_n), Create(tex_t), Create(tex_b) )
+        self.wait()
+
+        self.play( 
+            Indicate(tex_t),
+            Indicate(tex_b),
+            numplane.animate.set_opacity(0.25)
+        )
+        self.wait()
+
+        self.add_fixed_orientation_mobjects( tex_v )
+        self.play( FadeIn(arrow_v), Write(tex_v) )
+
+        tex_nv = get_tex(r"\hat{n} v = \hat{n} \times v - \hat{n} \cdot v").set_stroke(BLACK, 5, 1, True)
+        self.add_fixed_in_frame_mobjects(tex_nv)
+        tex_nv.to_corner(UL)
+        self.play(Write(tex_nv))
+        self.wait()
+
+        self.play(Indicate(tex_nv[7:]))
+        self.wait()
+        self.play(Unwrite(tex_nv[6:]))
+        self.wait()
+
+        def animate_rotate_v(label_text, angle):
+            alpha_tracker = ValueTracker(0)
+            arrow = arrow_v.copy()
+            label = get_arrow_label(
+                arrow,
+                lambda: get_tex(label_text)
+                    .set_stroke(BLACK, 5, 1, True)
+                    .set_opacity(alpha_tracker.get_value()), 
+                0.4
+            )
+            self.add_fixed_orientation_mobjects(label)
+            self.play( Rotate(arrow, angle, vi, ORIGIN), alpha_tracker.animate.set_value(1) )
+        
+        animate_rotate_v(nhat + " v", PI/2)
+
+        self.play(FadeOut(axes, arrow_n, arrow_t, arrow_b, tex_n, tex_t, tex_b))
+        
+        tex_vn = get_tex(r"v \hat{n} = - \hat{n} v")
+        tex_vn.set_stroke(BLACK, 5, 1, True)
+        self.add_fixed_in_frame_mobjects(tex_vn)
+        tex_vn.to_corner(UL).shift(DOWN*.5)
+        self.play(Write(tex_vn))
+
+        animate_rotate_v("v " + nhat, -PI/2)
+        self.wait()
+
+        tex_q = get_tex(r"q = cos(\theta) + \hat{n} sin(\theta)").to_corner(UR)
+        tex_q.set_stroke(BLACK, 5, 1, True)
+        self.add_fixed_in_frame_mobjects(tex_q)
+        self.play(Write(tex_q))
+        self.wait()
+
+        def rotated_arrow(label_text, angle):
+            arrow = arrow_v.copy().rotate(angle, vi, ORIGIN)
+            label = position_arrow_label(arrow, get_tex(label_text), 0.4).set_stroke(BLACK, 5, 1, True)
+            angle = angle3D(arrow, arrow_v, color=MYPINK)
+            return VGroup(arrow, label, angle)
+
+        angle_tracker = ValueTracker(30*DEGREES)
+        arrow_qv = always_redraw(lambda: rotated_arrow("q v", angle_tracker.get_value()))
+        self.add_fixed_orientation_mobjects(arrow_qv[1])
+        self.play(Write(arrow_qv))
+        self.wait()
+
+        arrow_vq = always_redraw(lambda: rotated_arrow("v q", -angle_tracker.get_value()))
+        self.add_fixed_orientation_mobjects(arrow_vq[1])
+        self.play(Write(arrow_vq))
+        self.wait()
+
+        self.play(angle_tracker.animate.set_value(45*DEGREES))
+        self.wait()
+
+        self.move_camera(phi=65*DEGREES, theta=45*DEGREES)
+
+        # TODO: Explain the problem with trying to rotate vectors outside the tb plane this way.
 
 class ThreeD(ThreeDScene):
     def construct(self):
@@ -816,7 +1044,6 @@ class RotationFormula(Scene):
             run_time=1.5
         )
 
-# Unused
 class Generalizing(Scene):
     def construct(self):
         _color_map = color_map | {"ii":RED, "{i}":RED, "-1": WHITE, "=": WHITE}

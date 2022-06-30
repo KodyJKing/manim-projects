@@ -22,7 +22,7 @@ class TexContainer(VMobject):
             return tex
         return self._to_tex(tex)
     
-    def transform(self, new_tex, instant=False, shift=ORIGIN, **kwargs):
+    def transform(self, new_tex, instant=False, match=True, shift=ORIGIN, **kwargs):
         new_tex = self.to_tex(new_tex)
         old_tex = self.tex
         self.tex = new_tex
@@ -34,18 +34,20 @@ class TexContainer(VMobject):
             self.add(new_tex)
             if instant:
                 scene.remove(old_tex)
+        
+        animation_func = TransformMatchingTex if match else ReplacementTransform
 
         if instant:
             anims = []
             run_time = 0.001
         else:
-            anims = [TransformMatchingTex(old_tex, new_tex, shift=shift, **kwargs)]
+            anims = [animation_func(old_tex, new_tex, shift=shift, **kwargs)]
             run_time = None
 
         return AnimationGroup(*anims, run_time=run_time, _on_finish=on_finish)
     
     def replace(self, new_tex, **kwargs):
-        return self.transform(new_tex, True, **kwargs)
+        return self.transform(new_tex, instant=True, **kwargs)
 
 # class Test(Scene):
 #     def construct(self):
