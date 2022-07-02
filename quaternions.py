@@ -1,3 +1,4 @@
+from webbrowser import get
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
@@ -28,7 +29,10 @@ MYPINK = "#ff6181"
 color_map = { 
     "\\overline{q}": MYPINK,
     ihat: RED, jhat: GREEN, khat: BLUE,
-    "i": RED, "j": GREEN, "k": BLUE, "b": WHITE,
+    "{i'}": RED, "{j'}": GREEN, "{k'}": BLUE,
+    "i'": RED, "j'": GREEN, "k'": BLUE,
+    "i": RED, "j": GREEN, "k": BLUE,
+    "b": WHITE,
     "q": MYPINK, r"\theta": MYPINK,
     "\\times": WHITE,
 }
@@ -97,6 +101,37 @@ def quat_times_table(tex_to_color_map=None):
         include_outer_lines=True,
         element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map),
     )
+
+def coordinate_frame(suffix="", label_dist=0.5):
+    arrow_i = Arrow3D(ORIGIN, vi, color=RED)
+    arrow_j = Arrow3D(ORIGIN, vj, color=GREEN)
+    arrow_k = Arrow3D(ORIGIN, vk, color=BLUE)
+    tex_j = math_tex("j").set_stroke(BLACK, 5, 1, True)
+    tex_i = math_tex("i").set_stroke(BLACK, 5, 1, True)
+    tex_k = math_tex("k").set_stroke(BLACK, 5, 1, True)
+
+    def add_updater(arrow: Arrow, tex: MathTex):
+        # We need to use a helper line because 3D arrows do not transform their points after creation. (WTF?)
+        line = Line(arrow.get_start(), arrow.get_end()).set_opacity(0)
+        arrow.add(line)
+        def updater(tex: MathTex):
+            tex.unfix_orientation()
+            u = line.get_unit_vector()
+            tex.move_to(line.get_end() + u * label_dist)
+            tex.fix_orientation()
+        tex.add_updater(updater)
+        updater(tex)
+    
+    add_updater(arrow_i, tex_i)
+    add_updater(arrow_j, tex_j)
+    add_updater(arrow_k, tex_k)
+
+    return arrow_i, arrow_j, arrow_k, tex_i, tex_j, tex_k
+
+def standard_axes():
+    return ThreeDAxes(x_range=[-5, 5], y_range=[-5, 5], z_range=[-5, 5], x_length=10, y_length=10, z_length=10)
+def jkplane():
+    return NumberPlane(x_range=[-10, 10], y_range=[-10, 10]).rotate(PI/2, vj)
 
 class QuatDefinition(Scene):
     def construct(self):
@@ -175,6 +210,7 @@ class QuatProps(AlgebraicProps):
     def is_quaternion_scene(self):
         return True
 
+# Use in appendix
 class TableDerivation(Scene):
     def construct(self):
         _color_map = color_map | { 
@@ -437,6 +473,7 @@ class UComplex(Scene):
             )
         play_commute_proof()
 
+# Don't use
 class ThreeDRework(ThreeDScene):
     def construct(self):
         VCOLOR = WHITE
@@ -515,8 +552,9 @@ class ThreeDRework(ThreeDScene):
             )
             self.add_fixed_orientation_mobjects(label)
             self.play( Rotate(arrow, angle, vi, ORIGIN), alpha_tracker.animate.set_value(1) )
+            return VGroup(arrow, label)
         
-        animate_rotate_v(nhat + " v", PI/2)
+        arrow_nv = animate_rotate_v(nhat + " v", PI/2)
 
         self.play(FadeOut(axes, arrow_n, arrow_t, arrow_b, tex_n, tex_t, tex_b))
         
@@ -526,7 +564,7 @@ class ThreeDRework(ThreeDScene):
         tex_vn.to_corner(UL).shift(DOWN*.5)
         self.play(Write(tex_vn))
 
-        animate_rotate_v("v " + nhat, -PI/2)
+        arrow_vn = animate_rotate_v("v " + nhat, -PI/2)
         self.wait()
 
         tex_q = get_tex(r"q = cos(\theta) + \hat{n} sin(\theta)").to_corner(UR)
@@ -561,18 +599,22 @@ class ThreeDRework(ThreeDScene):
 
         # Explain the problem with trying to rotate vectors outside the tb plane this way.
 
+        self.play(FadeOut(tex_nv, tex_vn, tex_q, arrow_nv, arrow_vn, arrow_qv, arrow_vq, arrow_v, tex_v))
+
         tex_perp = get_tex(r"\hat{n}(a \hat{n})", " = -a \hat{n} \cdot \hat{n} = -a")
         tex_perp.set_stroke(BLACK, 5, 1, True)
         self.add_fixed_in_frame_mobjects(tex_perp)
-        tex_perp.to_edge(LEFT)
+        # tex_perp.to_edge(LEFT)
+        tex_perp.to_corner(UL)
         tex_perp[4:].set_opacity(0)
-        self.play(Write(tex_perp[:4]))
-        self.wait()
 
         arrow_an = Arrow(ORIGIN, vi * 3, buff=0).set_z_index(-1)
         an_label = get_arrow_label(arrow_an, get_tex("a \hat{n}").set_stroke(BLACK, 5, 1, True) )
         self.add_fixed_orientation_mobjects(an_label)
         self.play(GrowArrow(arrow_an), Write(an_label))
+        self.wait()
+
+        self.play(Write(tex_perp[:4]))
         self.wait()
 
         self.play(Write(tex_perp[4:].set_opacity(1)))
@@ -584,20 +626,12 @@ class ThreeD(ThreeDScene):
         else:
             self.set_camera_orientation(phi=65*DEGREES, theta=20*DEGREES)
 
-        axes = ThreeDAxes(x_range=[-5, 5], y_range=[-5, 5], z_range=[-5, 5], x_length=10, y_length=10, z_length=10)
-        numplane = NumberPlane(x_range=[-10, 10], y_range=[-10, 10])
-        numplane.set_opacity(0).rotate(PI/2, vj)
+        axes = standard_axes()
+        numplane = jkplane().set_opacity(0)
         self.add(numplane)
         self.add(axes)
 
-        arrow_i = Arrow3D(ORIGIN, vi, color=RED)
-        arrow_j = Arrow3D(ORIGIN, vj, color=GREEN)
-        arrow_k = Arrow3D(ORIGIN, vk, color=BLUE)
-
-        label_dist = 1.25
-        tex_i = math_tex("i").move_to(vi * label_dist).set_stroke(BLACK, 5, 1, True)
-        tex_j = math_tex("j").move_to(vj * label_dist).set_stroke(BLACK, 5, 1, True)
-        tex_k = math_tex("k").move_to(vk * label_dist).set_stroke(BLACK, 5, 1, True)
+        arrow_i, arrow_j, arrow_k, tex_i, tex_j, tex_k = coordinate_frame()
         self.add_fixed_orientation_mobjects( tex_i, tex_j, tex_k )
 
         self.play( 
@@ -685,21 +719,13 @@ class ThreeDPart2(ThreeDScene):
     def construct(self):
         self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
 
-        numplane = NumberPlane(x_range=[-10, 10], y_range=[-10, 10])
-        numplane.rotate(PI/2, vj).set_opacity(.25)
+        numplane = jkplane().set_opacity(.25)
         self.add(numplane)
-        axes = ThreeDAxes(x_range=[-5, 5], y_range=[-5, 5], z_range=[-5, 5], x_length=10, y_length=10, z_length=10)
+        axes = standard_axes()
         self.add(axes)
 
-        arrow_i = Arrow3D(ORIGIN, vi, color=RED)
-        arrow_j = Arrow3D(ORIGIN, vj, color=GREEN)
-        arrow_k = Arrow3D(ORIGIN, vk, color=BLUE)
+        arrow_i, arrow_j, arrow_k, tex_i, tex_j, tex_k = coordinate_frame()
         self.add(arrow_i, arrow_j, arrow_k)
-
-        label_dist = 1.25
-        tex_i = math_tex("i").move_to(vi * label_dist)
-        tex_j = math_tex("j").move_to(vj * label_dist)
-        tex_k = math_tex("k").move_to(vk * label_dist)
         self.add_fixed_orientation_mobjects( tex_i, tex_j, tex_k )
 
         table = pure_quat_times_table(color_map).scale(0.5).to_edge(LEFT)
@@ -1147,3 +1173,183 @@ class Generalizing(Scene):
         
         add_blurb(tex_full_ident)
         add_blurb(tex_ident_full_j, "j", GREEN, GREEN_B)
+
+class PrimeCoordinates(ThreeDScene):
+    def construct(self):
+        if config.renderer == "opengl":
+            self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
+        else:
+            self.set_camera_orientation(phi=65*DEGREES, theta=20*DEGREES)
+
+        def get_tex(string):
+            return colored_math_tex(string, t2c=color_map)
+
+        axes = standard_axes()
+        numplane = jkplane()
+        # self.add(numplane)
+        self.add(axes)
+
+        frame = Group(*coordinate_frame(label_dist=0.75))
+        arrow_i, arrow_j, arrow_k, tex_i, tex_j, tex_k = frame
+        self.add(arrow_i, arrow_j, arrow_k)
+        self.add_fixed_orientation_mobjects( tex_i, tex_j, tex_k )
+
+        self.wait()
+
+        def transform_tex_anim(tex_from, tex_to):
+            tex_to.move_to(tex_from).fix_orientation()
+            tex_to.add_updater(tex_from.get_updaters()[0])
+            return Transform(tex_from, tex_to)
+        
+        self.play( 
+            *[
+                Rotate( mobj, PI/3, normalize(vi - vj - vk), about_point=ORIGIN )
+                # for mobj in [ numplane, arrow_i, arrow_j, arrow_k ]
+                for mobj in [ arrow_i, arrow_j, arrow_k ]
+            ],
+            transform_tex_anim(tex_i, get_tex("i'")),
+            transform_tex_anim(tex_j, get_tex("j'")),
+            transform_tex_anim(tex_k, get_tex("k'"))
+        )
+
+        self.move_camera(phi=30*DEGREES, theta=70*DEGREES)
+        self.wait()
+
+        tex_ij = get_tex(r"i' j' = i' \times j' - i' \cdot j'").to_corner(UL)
+        self.add_fixed_in_frame_mobjects(tex_ij)
+        self.play(Write(tex_ij))
+        tex_ij2 =  get_tex(r"i' j' = i' \times j'").to_corner(UL)
+        self.add_fixed_in_frame_mobjects(tex_ij2)
+        for part in tex_ij[6:]:
+            part.tex_string += "_"
+        self.play(TransformMatchingTex(tex_ij, tex_ij2, shift=ORIGIN))
+        tex_ij = tex_ij2
+        tex_ij2 =  get_tex(r"i' j' = i' \times j' = k'").to_corner(UL)
+        self.add_fixed_in_frame_mobjects(tex_ij2)
+        self.play(Write(tex_ij2[6:]))
+
+class Isomorphism(Scene):
+    def construct(self):
+        words = ["-", "="]
+        local_color_map = color_map | { "a":BLUE, "b":GREEN }
+        def get_tex(string, t2c={}):
+            return colored_math_tex(string, words=words, t2c=local_color_map | t2c)
+
+        def ident_and_rotation_formula(i, j, k):
+            replace = lambda string: string.replace("@i", i).replace("@j", j).replace("@k", k)
+
+            def rotation_formula():
+                text_rot = replace(r"q v \overline{q} \text{ rotates } v \text{ about } @i}")
+                text_rot2 = replace(r"\text{counter-clockwise by } \theta")
+                text_q = replace(r"q = cos( \frac{1}{2} \theta) + @i sin( \frac{1}{2} \theta)")
+                tex_rot = get_tex(text_rot)
+                tex_rot2 = get_tex(text_rot2)
+                tex_q = get_tex(text_q)
+                lines = VGroup(tex_rot, tex_rot2, tex_q).arrange(DOWN)
+                rect = SurroundingRectangle(lines, fill_color=BLACK, fill_opacity=1)
+                return VGroup(
+                    MathTex(r"\Rightarrow"),
+                    VGroup(rect, lines)
+                ).arrange(RIGHT).scale(0.75)
+
+            text_ident = replace(r"@i^2 = @j^2 = @k^2 = @i @j @k = -1")
+            tex_ident = get_tex(text_ident).set_stroke(BLACK, 5, 1, True)
+
+            return VGroup(tex_ident, rotation_formula()).arrange(RIGHT, buff=0.5)
+
+        equations = ident_and_rotation_formula("i", "j", "k")
+        equations_prime = ident_and_rotation_formula("{i'}", "{j'}", "{k'}")
+
+        table = VGroup(
+            *equations, 
+            *equations_prime
+        ).arrange_in_grid(2, 2, col_alignments="rl", buff=(0.25, 0.5))
+
+        self.play(FadeIn(equations[0]))
+        self.wait()
+        self.play(FadeIn(equations[1]))
+        self.wait()
+
+        self.play(Write(equations_prime[0]))
+        self.wait(2)
+        self.play(FadeIn(equations_prime[1]))
+        self.wait(2)
+
+        ident, rotation_formula = equations_prime
+        self.play( FadeOut( equations, equations_prime[1] ), ident.animate.to_corner(UL) )
+        self.wait()
+
+        # tex_cross_length = get_tex(r"|a \times b| = |a||b|sin(\theta)", t2c={r"\theta":WHITE})
+        # tex_dot = get_tex(r"a \cdot b = |a||b|cos(\theta)", t2c={r"\theta":WHITE}).to_corner(UR)
+        # tex_cross_length.to_corner(UR)
+        # tex_dot.next_to(tex_cross_length, DOWN)
+        tex_quat_product = get_tex(r"u v = u \times v - u \cdot v").to_corner(UR)
+
+        tc = TexContainer("{i'}^2", get_tex)
+        self.play(Write(tc))
+        self.wait()
+
+        self.play(Write(tex_quat_product))
+        self.wait()
+
+        self.play(tc.transform(r"{i'}^2 = {i'} \times {i'} - {i'} \cdot {i'}"))
+        self.wait()
+
+        # self.play(FadeIn(tex_cross_length))
+        # self.wait()
+        
+        for part in tc.tex[3:6]:
+            part.tex_string += "_" # Don't match these strings.
+        self.play(tc.transform(r"{i'}^2 = - {i'} \cdot {i'}"))
+        self.wait()
+
+        # self.play(FadeIn(tex_dot))
+        # self.wait()
+
+        self.play(tc.transform(r"{i'}^2 = - |{i'}|^2"))
+        self.wait()
+        self.play(tc.transform(r"{i'}^2 = - 1"))
+        self.wait()
+
+        self.play(tc.transform(r"{i'}^2 = {j'}^2 = {k'}^2 = - 1"))
+        self.wait()
+
+        self.play(FadeOut(tc))
+        self.wait()
+
+        tc = TexContainer("i' j' k'", get_tex)
+        self.play(FadeIn(tc))
+        self.wait()
+
+        self.play(Indicate(tc.tex[:2]))
+        self.wait()
+
+        tc_ij = TexContainer(r"i' j' = i' \times j' - i' \cdot j'", get_tex).next_to(tc, DOWN, buff=0.5)
+        self.play(Write(tc_ij))
+        self.wait()
+        for part in tc_ij.tex[6:]:
+            part.tex_string += "_" # Don't match these strings.
+        self.play(tc_ij.transform(r"i' j' = i' \times j'"))
+        self.wait()
+        tex_ij2 = get_tex(r"i' j' = i' \times j' = k'").move_to(tc_ij, LEFT)
+        self.play(Write(tex_ij2[6:]))
+        self.wait()
+
+        self.play(FadeOut(tc_ij, tex_ij2))
+        self.play(Indicate(tc.tex[:2]))
+        self.play(tc.transform("i' j' k' = {k'}{k'}"))
+        self.wait()
+        self.play(tc.transform("i' j' k' = {k'}^2"))
+        self.wait()
+        self.play(tc.transform("i' j' k' = -1"))
+        self.wait()
+
+        rotation_formula.set_opacity(0)
+        # self.play(FadeOut(tc, tex_cross_length, tex_dot), equations_prime.animate.arrange().set_opacity(1))
+        self.play(FadeOut(tc, tex_quat_product), equations_prime.animate.arrange().set_opacity(1))
+        self.wait()
+
+        # self.add(index_labels(tc.tex))
+        # self.wait()
+        # return
+        

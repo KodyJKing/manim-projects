@@ -435,6 +435,129 @@ class RotationPreview(Scene):
 
         self.wait()
 
+class ComponentTimesI(Scene):
+    def construct(self):
+        numplane = ComplexPlane().add_coordinates()
+
+        points = [c1, ci, -c1, -ci]
+
+        steps = [
+            x.split(";") for x in [
+                "1",
+                "1 i;i",
+                "i i; i ^2; - 1",
+                "- 1 i; - i",
+                "- i i; - i ^2; - ( - 1 ); 1",
+            ]
+        ]
+        
+        def get_step_player(step_group):
+            previous_line = None
+            self.add(step_group)
+
+            for step in steps:
+                newline = True
+                for substep in step:
+                    tex = MathTex(*substep.split(" "))
+                    if previous_line == None:
+                        tex.to_corner(UL).shift(RIGHT)
+                        self.play(Write(tex))
+                    else:
+                        extra_anims = []
+                        if newline:
+                            tex.next_to(previous_line, DOWN, aligned_edge=LEFT)
+                            hbuff = LEFT * 0.5
+                            vbuff = DOWN * 0.1
+                            arc = CurvedArrow(
+                                previous_line.get_edge_center(LEFT)+hbuff+vbuff, 
+                                tex.get_edge_center(LEFT)+hbuff-vbuff,
+                                tip_length=0.12, color=BLUE
+                            )
+                            label = MathTex("i", color=BLUE).next_to(arc.get_center(), LEFT)
+                            extra_anims.append(Create(arc))
+                            extra_anims.append(Write(label))
+                            step_group.add(arc, label)
+                        else:
+                            tex.move_to(previous_line, aligned_edge=LEFT)
+                        self.play(
+                            TransformMatchingTex(previous_line, tex, shift=DOWN),
+                            *extra_anims
+                        )
+                    self.wait(.25)
+                    previous_line = tex
+                    newline = False
+                step_group.add(previous_line.copy())
+                self.remove(previous_line)
+                yield
+
+        def get_dots_and_arcs(scale, get_label):
+            def labeled_dot(point, index):
+                return ExternalLabeledDot(
+                    Dot(point * scale),
+                    get_label(point * scale, index),
+                    direction=normalize(point),
+                    distance=1
+                )
+            dots = VGroup(*map( labeled_dot, points, range(4) ))
+            arcs = []
+            for i in range(len(points)):
+                j = (i + 1) % len(points)
+                pointI = points[i] * scale
+                pointJ = points[j] * scale
+                normal = rotate_cw(pointJ - pointI)
+                color = BLUE
+                arc = CurvedArrow(pointI, pointJ, radius=scale, tip_length=.2, color=color)
+                label = MathTex("i", color=color).next_to(arc.get_center(), normal)
+                arc = VGroup(arc, label)
+                arcs.append(arc)
+            arcs = VGroup(*arcs)
+            return dots, arcs
+
+        dots, arcs = get_dots_and_arcs(1, lambda p, i: ["1", "i", "-1", "-i"][i])
+
+        self.play( Create(numplane) )
+
+        # Animate first cycle
+        step_group = VGroup()
+        step_player = get_step_player(step_group)
+        arrow = Arrow(ORIGIN, c1, color=RED, buff=0, z_index=1)
+        self.play(
+            numplane.animate.set_opacity(.25),
+            FadeIn(dots[0], arrow)
+        )
+        step_player.__next__()
+        self.wait()
+        for i in range(3):
+            step_player.__next__()
+            self.play( FadeIn(dots[i + 1]), Rotate(arrow, PI / 2, about_point=ORIGIN), FadeIn(arcs[i]))
+            self.wait()
+        step_player.__next__()
+        self.play(FadeIn(arcs[3]), Rotate(arrow, PI / 2, about_point=ORIGIN))
+        self.wait()
+
+        self.play(FadeOut(arrow, step_group))
+
+        # Scaling cycle
+        scale_tracker = ValueTracker(1)
+        def get_loop():
+            def get_label(p, i):
+                return DecimalNumber(p[0] + p[1], unit=[None, "i"][i % 2])
+            scale = scale_tracker.get_value()
+            dots, arcs = get_dots_and_arcs(scale, get_label)
+            return VGroup(dots, arcs)
+        loop = always_redraw( get_loop )
+        self.play( ReplacementTransform(VGroup(dots, arcs), loop) )
+        self.play(scale_tracker.animate.set_value(3), run_time=3)
+        self.wait()
+
+        self.play(numplane.get_axes().animate.set_opacity(1), run_time=0.5)
+        self.play(Indicate(numplane.get_axes()))
+        self.wait()
+
+        self.play(FadeOut(loop))
+        self.play(numplane.animate.set_opacity(1), run_time=0.5)
+        self.play(Indicate(numplane, 1))
+
 class ActionOfI(Scene):
     def construct(self):
         color_map = {"a":RED, "b":GREEN, "u": BLUE}
