@@ -365,6 +365,7 @@ class TableDerivation(Scene):
 
         self.play( FadeOut(tex_ident), table.animate.move_to(ORIGIN).scale(2/3 / 0.5) )
 
+# Use in appendix
 class UComplex(Scene):
     def construct(self):
         UCOLOR = YELLOW
@@ -1088,6 +1089,7 @@ class RotationFormula(Scene):
             run_time=1.5
         )
 
+# Don't use
 class Generalizing(Scene):
     def construct(self):
         _color_map = color_map | {"ii":RED, "{i}":RED, "-1": WHITE, "=": WHITE}
@@ -1215,18 +1217,18 @@ class PrimeCoordinates(ThreeDScene):
         self.move_camera(phi=30*DEGREES, theta=70*DEGREES)
         self.wait()
 
-        tex_ij = get_tex(r"i' j' = i' \times j' - i' \cdot j'").to_corner(UL)
-        self.add_fixed_in_frame_mobjects(tex_ij)
-        self.play(Write(tex_ij))
-        tex_ij2 =  get_tex(r"i' j' = i' \times j'").to_corner(UL)
-        self.add_fixed_in_frame_mobjects(tex_ij2)
-        for part in tex_ij[6:]:
-            part.tex_string += "_"
-        self.play(TransformMatchingTex(tex_ij, tex_ij2, shift=ORIGIN))
-        tex_ij = tex_ij2
-        tex_ij2 =  get_tex(r"i' j' = i' \times j' = k'").to_corner(UL)
-        self.add_fixed_in_frame_mobjects(tex_ij2)
-        self.play(Write(tex_ij2[6:]))
+        # tex_ij = get_tex(r"i' j' = i' \times j' - i' \cdot j'").to_corner(UL)
+        # self.add_fixed_in_frame_mobjects(tex_ij)
+        # self.play(Write(tex_ij))
+        # tex_ij2 =  get_tex(r"i' j' = i' \times j'").to_corner(UL)
+        # self.add_fixed_in_frame_mobjects(tex_ij2)
+        # for part in tex_ij[6:]:
+        #     part.tex_string += "_"
+        # self.play(TransformMatchingTex(tex_ij, tex_ij2, shift=ORIGIN))
+        # tex_ij = tex_ij2
+        # tex_ij2 =  get_tex(r"i' j' = i' \times j' = k'").to_corner(UL)
+        # self.add_fixed_in_frame_mobjects(tex_ij2)
+        # self.play(Write(tex_ij2[6:]))
 
 class Isomorphism(Scene):
     def construct(self):
