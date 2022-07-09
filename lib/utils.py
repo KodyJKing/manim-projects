@@ -94,3 +94,9 @@ def play_rewrite_sequence(
             if wait > 0:
                 scene.wait(wait)
             prev_step = tex
+
+def fallback_mobj(get_primary: Callable[[],Mobject], fallback: Mobject):
+    try:
+        return get_primary()
+    except Exception as err:
+        return fallback

@@ -59,12 +59,14 @@ class LabeledArrow(VMobject):
         if scene:
             scene.remove(old_label)
 
-    def animate_relabel(self, next_label: MathTex, match_tex=True, **kwargs):
+    def animate_relabel(self, next_label: MathTex, match_tex=True, extra_sources: Group | None = None, **kwargs):
         old_label = self.label
         self.relabel(next_label, False)
 
         if match_tex:
-            animation = TransformMatchingTex(old_label, next_label, **kwargs)
+            sources = extra_sources if extra_sources else Group()
+            sources.add(old_label)
+            animation = TransformMatchingTex(sources, next_label, **kwargs)
         else:
             animation = ReplacementTransform(old_label, next_label, **kwargs)
 

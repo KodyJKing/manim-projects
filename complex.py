@@ -1,3 +1,4 @@
+from inspect import get_annotations
 import math
 from manim import *
 from manim.utils.space_ops import ( 
@@ -13,7 +14,7 @@ from lib.ExternalLabeledDot import ExternalLabeledDot
 from lib.LabeledArrow import LabeledArrow
 from lib.TransformMatchingKeyTex import TransformMatchingKeyTex, set_transform_key
 from lib.mathutils import clamp, rotate_cc, rotate_cw, smoothstep
-from lib.utils import angle_label_pos, animate_arc_to, animate_replace_tex, colored_math_tex, compose_colored_tex
+from lib.utils import angle_label_pos, animate_arc_to, animate_replace_tex, colored_math_tex, compose_colored_tex, fallback_mobj
 
 c1 = np.array([1, 0, 0])
 ci = np.array([0, 1, 0])
@@ -27,6 +28,9 @@ def eq_shift( eq: MathTex, other: MathTex ):
 def align_eqs(eq: MathTex, *others: MathTex):
     for other in others:
         other.shift( eq_shift(other, eq) )
+
+def polar2xy(theta, radius=1):
+    return RIGHT * np.cos(theta) * radius + UP * np.sin(theta) * radius
 
 class Intro(ThreeDScene):
     def construct(self):
@@ -669,6 +673,145 @@ class ActionOfI(Scene):
 
         self.wait()
 
+class ComplexMultiplication(MovingCameraScene):
+    def construct(self):
+        local_color_map = {r"\theta": YELLOW, "u": YELLOW, "iv": BLUE_E, "v": BLUE}
+        words = ["sin", "cos", "+", "i"]
+        def get_tex(*string, **kwargs):
+            return colored_math_tex(*string, t2c=local_color_map, words=words, **kwargs)
+
+        self.camera.frame.move_to(UP * 2)
+
+        numplane = NumberPlane(y_range=[-10, 10])
+        numplane.set_opacity(0.25)
+        dot = Dot(z_index=10)
+        self.add(numplane, dot)
+        self.wait()
+
+
+        get_arrow = lambda *args, **kwargs: Arrow(ORIGIN, *args, buff=0, **kwargs)
+
+        angle_u = ValueTracker(0.001)
+        angle_v = ValueTracker(30*DEGREES)
+        alpha_uv = ValueTracker(0)
+        length_u = 1
+        length_v = 3
+
+        def get_arrow_rotated(tex, get_angle, color=WHITE, get_length=lambda: 1, **kwargs):
+            return always_redraw(
+                lambda: LabeledArrow(
+                    get_arrow(RIGHT*get_length(), color=color).rotate(get_angle(), about_point=ORIGIN),
+                    tex, **kwargs
+                )
+            )
+
+        arrow_v = get_arrow_rotated(
+            get_tex("v"),
+            lambda: angle_v.get_value(),
+            get_length=lambda: length_v,
+            color=BLUE,
+        )
+        arrow_iv = get_arrow_rotated(
+            get_tex("iv"), 
+            lambda: angle_v.get_value() + PI/2,
+            get_length=lambda: length_v,
+            color=BLUE_E,
+        )
+
+        arrow_uv = get_arrow_rotated(
+            get_tex(r"R_{\theta}(v)"),
+            lambda: angle_v.get_value() + angle_u.get_value(),
+            get_length=lambda: length_v,
+            color=GREEN,
+        )
+        arrow_uv.add_updater(lambda x: x.set_opacity(alpha_uv.get_value()), True)
+
+        self.play(arrow_v.grow_animation())
+        self.play(arrow_iv.grow_animation())
+
+        # Angle really does not like us passing in functional arrows for some reason.
+        def get_angle():
+            u, v = angle_u.get_value(), angle_v.get_value()
+            return Angle( 
+                Line(ORIGIN, RIGHT).rotate(v, about_point=ORIGIN),
+                Line(ORIGIN, RIGHT).rotate(u + v, about_point=ORIGIN),
+                color=YELLOW
+            )
+        angle_uv = always_redraw(get_angle)
+
+        # self.play(arrow_uv.grow_animation())
+        # self.play(Create(angle_uv))
+
+        self.add(arrow_uv, angle_uv)
+        self.play(alpha_uv.animate.set_value(1), angle_u.animate.set_value(45*DEGREES))
+
+        arrow_cos_v = arrow_v = get_arrow_rotated(
+            get_tex(r"cos(\theta) v")
+                .scale(2/3)
+                .rotate(angle_v.get_value()),
+            lambda: angle_v.get_value(),
+            get_length=lambda: length_v * np.cos(angle_u.get_value()),
+            color=YELLOW,
+            perp_distance = -0.35, alpha=0.3
+        )
+
+        arrow_sin_iv = arrow_v = get_arrow_rotated(
+            get_tex(r"sin(\theta) iv")
+                .scale(2/3)
+                .rotate(angle_v.get_value() - PI/2),
+            lambda: angle_v.get_value() + PI/2,
+            get_length=lambda: length_v * np.sin(angle_u.get_value()),
+            color=YELLOW_E,
+            perp_distance = 0.35, alpha=0.3
+        )
+        
+        line_cos = always_redraw(
+            lambda: DashedLine(
+                arrow_cos_v.arrow.get_end(),
+                arrow_uv.arrow.get_end(),
+                color=YELLOW
+            )
+        )
+
+        line_sin = always_redraw(
+            lambda: DashedLine(
+                arrow_sin_iv.arrow.get_end(),
+                arrow_uv.arrow.get_end(),
+                color=YELLOW_E
+            )
+        )
+
+        self.play(FadeIn(line_cos, line_sin))
+        line_cos.suspend_updating()
+        line_sin.suspend_updating()
+        self.play(arrow_cos_v.grow_animation())
+        self.play(arrow_sin_iv.grow_animation())
+        line_cos.resume_updating()
+        line_sin.resume_updating()
+        self.wait()
+
+        self.play(angle_u.animate.increment_value(20*DEGREES))
+        self.play(angle_u.animate.increment_value(-40*DEGREES))
+        self.play(angle_u.animate.increment_value(20*DEGREES))
+
+        arrow_uv.clear_updaters()
+        arrow_sin_iv.clear_updaters()
+
+        # self.play(
+        #     arrow_sin_iv.animate.shift(arrow_cos_v.arrow.get_end())
+        # )
+        # self.wait()
+
+        self.play( arrow_uv.animate_relabel( 
+            get_tex(r"cos(\theta) v + sin(\theta) iv" ),
+            extra_sources=Group(arrow_cos_v.label.copy(), arrow_sin_iv.label.copy())
+        ) )
+        self.wait()
+        self.play( arrow_uv.animate_relabel( get_tex(r"[cos(\theta) + i sin(\theta)] \cdot v" ) ) )
+        self.wait()
+        self.play( arrow_uv.animate_relabel( get_tex(r"u v" ) ) )
+        self.wait()
+
 class ArbitraryTimesArbitrary2(MovingCameraScene):
     def construct(self):
         color_map = { 
@@ -814,22 +957,43 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
 
 class UnitComplexNumbers(Scene):
     def construct(self):
-        numplane = ComplexPlane()
-        numplane.add_coordinates()
-        numplane.set_opacity(0.25)
-        numplane.set_z_index(-10)
+        theta_tracker = ValueTracker(0.001*DEGREES)
+
+        U_COLOR = BLUE
+        CONJ_COLOR = YELLOW
+        scene_color_map = { 
+            "u": U_COLOR, r"\overline{u}":CONJ_COLOR,
+            # r"\theta": U_COLOR,
+            "cos":RED, "sin":GREEN
+        }
+        texkw = { "tex_to_color_map": scene_color_map }
+
+        def get_tex(*strings):
+            return colored_math_tex(*strings, t2c=scene_color_map)
+
+        # numplane = ComplexPlane()
+        # numplane.add_coordinates()
+        # numplane.set_opacity(0.25)
+        # numplane.set_z_index(-10)
+        # self.add(numplane)
+
+        def get_numplane():
+            xrange = [-10, 10]
+            result = NumberPlane(x_range=xrange, y_range=xrange).rotate(theta_tracker.get_value())
+            return result.set_opacity(0.25).set_z_index(-10)
+        numplane = always_redraw( get_numplane )
         self.add(numplane)
 
         title = Tex("Pure Rotations:")
         title.to_corner(UL)
         self.add(title[0])
 
-        tex_mod_equals_one = MathTex("|u| = 1")
+        tex_mod_equals_one = get_tex("| u | = 1")
         tex_mod_equals_one.next_to(title, DOWN, 0.5, aligned_edge=LEFT)
         self.play(Write(tex_mod_equals_one))
         self.wait()
 
-        circle = Circle(1, BLUE)
+        circle = Circle(1, WHITE)
         circle.set_z_index(-1)
         self.play(Create(circle))
 
@@ -837,44 +1001,71 @@ class UnitComplexNumbers(Scene):
         line_re.set_z_index(-2)
         self.play(Create(line_re))
 
-        theta_tracker = ValueTracker(45*DEGREES)
-        def get_dot(label_text, sign=1):
+        def get_dot(label_text, sign=1, color=WHITE):
             def func():
                 theta = theta_tracker.get_value() * sign
-                u = np.cos(theta) * RIGHT + np.sin(theta) * UP
-                dot = Dot(u)
-                line = Line(ORIGIN, u)
+                u = polar2xy(theta)
+                alpha = smoothstep( 15*DEGREES, 25*DEGREES, theta*sign )
+
+                dot = Dot(u, color=color)
+                
+                line = Line(ORIGIN, u, color=color)
                 line_re = Line(ORIGIN, RIGHT)
-                angle = Angle(line_re, line, radius=0.25, other_angle=theta<0)
+                
+                angle = Angle(line_re, line, color=color, radius=0.25, other_angle=theta<0)
+                
                 theta_text = "\\theta" if sign > 0 else "-\\theta"
                 label_theta = MathTex(theta_text).scale(.8).move_to(angle.get_midpoint() * 2)
-                label = MathTex(label_text).next_to(dot, u, buff=0.1)
+                label_theta.set_opacity(alpha)
+
+                label = MathTex(label_text, color=color).next_to(dot, u, buff=0.1)
+
+                arrow_radius = 2
+                theta_buff = PI/32
+                arrow = CurvedArrow(
+                    polar2xy(0     + theta_buff*sign, arrow_radius),
+                    polar2xy(theta - theta_buff*sign, arrow_radius),
+                    radius=arrow_radius*sign,
+                    tip_length=0.2,
+                    color=color
+                )
+                arrow.get_tip().set_opacity(alpha)
+                
                 result = VDict({
                     "dot": dot, "line": line, "angle": angle,
-                    "label_theta": label_theta, "label": label
+                    "label_theta": label_theta, "label": label,
+                    "arrow": arrow
                 })
                 return result
             return func
         
-        dot_u = always_redraw(get_dot("u"))
+        dot_u = always_redraw(get_dot("u", color=U_COLOR))
 
         self.play(Create(dot_u))
-        self.play(theta_tracker.animate.set_value(135*DEGREES))
+        self.play(theta_tracker.animate.set_value(135*DEGREES), run_time=1.5)
+        self.wait()
 
-        tex_form = MathTex("u = cos(\\theta) + i sin(\\theta)", tex_to_color_map={"cos":RED, "sin":GREEN})
+        tex_form = get_tex("u = cos(\\theta) + i sin(\\theta)")
         tex_form.next_to(tex_mod_equals_one, DOWN, aligned_edge=LEFT)
-        self.play(Write(tex_form))
+        self.play(Write(tex_form), FadeOut(numplane))
 
-        dot_uconj = always_redraw(get_dot("\\overline{u}", -1))
-        self.play(Create(dot_uconj))
+        tex_form_conj = get_tex("\\overline{u} = cos(\\theta) - i sin(\\theta)")
+        tex_form_conj.next_to(tex_form, DOWN, aligned_edge=LEFT)
+        self.play(Write(tex_form_conj))
+
+        dot_uconj = always_redraw(get_dot("\\overline{u}", -1, CONJ_COLOR))
+        # self.play(Create(dot_uconj))
+        self.play(ReplacementTransform(dot_u.copy(), dot_uconj))
         self.wait()
 
         self.play(theta_tracker.animate.set_value(75*DEGREES))
 
-        tex_inverse = MathTex("u^{-1}", "= \\overline{u}")
-        tex_inverse.next_to(tex_form, DOWN, aligned_edge=LEFT)
+        tex_inverse = get_tex("\\overline{u} = u^{-1}")
+        tex_inverse.next_to(tex_form_conj, DOWN, aligned_edge=LEFT)
         self.play(Write(tex_inverse))
+        self.wait()
 
-        tex_inverse2 = MathTex("u \\overline{u} = 1")
+        tex_inverse2 = get_tex("u \\overline{u} = 1")
         tex_inverse2.next_to(tex_inverse, DOWN, aligned_edge=LEFT)
         self.play(Write(tex_inverse2))
+
