@@ -966,7 +966,6 @@ class UnitComplexNumbers(Scene):
             # r"\theta": U_COLOR,
             "cos":RED, "sin":GREEN
         }
-        texkw = { "tex_to_color_map": scene_color_map }
 
         def get_tex(*strings):
             return colored_math_tex(*strings, t2c=scene_color_map)
@@ -984,7 +983,10 @@ class UnitComplexNumbers(Scene):
         numplane = always_redraw( get_numplane )
         self.add(numplane)
 
-        title = Tex("Pure Rotations:")
+        dot = Dot().set_z_index(10)
+        self.add(dot)
+
+        title = Tex("Pure Rotations")
         title.to_corner(UL)
         self.add(title[0])
 

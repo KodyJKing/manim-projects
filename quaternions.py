@@ -1,3 +1,4 @@
+from typing import List
 from webbrowser import get
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
@@ -992,7 +993,11 @@ class DualPlanes(Scene):
         self.play( Write( tex_sandwich_1 ) )
         self.wait()
 
-        def animate_sandwich(labeled_arrow: LabeledArrow, plane: Axes, label2: str, angle: float, reverse_step_2: bool):
+        def animate_sandwich(
+            labeled_arrow: LabeledArrow, plane: Axes,
+            label2: str, angle: float, reverse_step_2: bool,
+            net_angle_steps: List[str]
+        ):
             arrow = labeled_arrow.arrow
             origin = arrow.get_start()
             step2sign = -1 if reverse_step_2 else 1
@@ -1012,6 +1017,11 @@ class DualPlanes(Scene):
                 Create(mobj_angle1)
             )
 
+            get_tex = lambda string: colored_math_tex(string, t2c=color_map).scale(plane_scale)
+            tc_net_angle = TexContainer(net_angle_steps[0], get_tex)
+            tc_net_angle.move_to(plane["axes"].c2p(1, -1))
+            self.play(Write(tc_net_angle))
+
             self.wait(0.5)
 
             arrow_qvq = LabeledArrow( arrow_qv.arrow.copy(), math_tex("qv").scale(plane_scale) )
@@ -1023,23 +1033,27 @@ class DualPlanes(Scene):
                 *conditional_steps
             )
 
-            net_angle = "\\theta - \\theta" if reverse_step_2 else "\\theta + \\theta"
-            net_angle2 = "0" if reverse_step_2 else "2\\theta"
-            tex_net_angle = math_tex(net_angle).move_to(plane["axes"].c2p(1, -1))
-            self.play(Write(tex_net_angle))
-            self.wait(.5)
-            self.play(replace_tex(tex_net_angle, net_angle2, aligned_edge=ORIGIN))
-            circle = Circle(0.3, color=YELLOW).move_to(tex_net_angle)
-            # circle.point_from_proportion()
-            self.play(Create(circle))
+            self.play(tc_net_angle.transform(net_angle_steps[1]))
+            self.wait(0.5)
+            self.play(tc_net_angle.transform(net_angle_steps[2], match=False))
+            underline = Underline(tc_net_angle, color=WHITE)
+            self.play(Create(underline))
 
-            return VGroup( arrow_qv, arrow_qvq, mobj_angle1, mobj_angle2, tex_net_angle, circle )
+            return VGroup( arrow_qv, arrow_qvq, mobj_angle1, mobj_angle2, tc_net_angle, underline )
         
         label = "qvq"
         angle = PI / 4
-        sandwich1 = animate_sandwich(arrow_ab, plane_1i, label, angle, False)
+        sandwich1 = animate_sandwich(arrow_ab, plane_1i, label, angle, False, [
+            r"\theta",
+            r"\theta + \theta",
+            r"2 \theta",
+        ])
         self.wait()
-        sandwich2 = animate_sandwich(arrow_cd, plane_jk, label, angle, True)
+        sandwich2 = animate_sandwich(arrow_cd, plane_jk, label, angle, True, [
+            r"\theta",
+            r"\theta - \theta",
+            r"0",
+        ])
         self.wait()
 
         self.play(
@@ -1051,9 +1065,17 @@ class DualPlanes(Scene):
         self.wait()
 
         label = "qv\\overline{q}"
-        sandwich1 = animate_sandwich(arrow_ab, plane_1i, label, angle, True)
+        sandwich1 = animate_sandwich(arrow_ab, plane_1i, label, angle, True, [
+            r"\theta",
+            r"\theta + (-\theta)",
+            r"0",
+        ])
         self.wait()
-        sandwich2 = animate_sandwich(arrow_cd, plane_jk, label, angle, False)
+        sandwich2 = animate_sandwich(arrow_cd, plane_jk, label, angle, False, [
+            r"\theta",
+            r"\theta - (-\theta)",
+            r"2 \theta",
+        ])
         self.wait()
 
 class RotationFormula(Scene):
@@ -1216,19 +1238,6 @@ class PrimeCoordinates(ThreeDScene):
 
         self.move_camera(phi=30*DEGREES, theta=70*DEGREES)
         self.wait()
-
-        # tex_ij = get_tex(r"i' j' = i' \times j' - i' \cdot j'").to_corner(UL)
-        # self.add_fixed_in_frame_mobjects(tex_ij)
-        # self.play(Write(tex_ij))
-        # tex_ij2 =  get_tex(r"i' j' = i' \times j'").to_corner(UL)
-        # self.add_fixed_in_frame_mobjects(tex_ij2)
-        # for part in tex_ij[6:]:
-        #     part.tex_string += "_"
-        # self.play(TransformMatchingTex(tex_ij, tex_ij2, shift=ORIGIN))
-        # tex_ij = tex_ij2
-        # tex_ij2 =  get_tex(r"i' j' = i' \times j' = k'").to_corner(UL)
-        # self.add_fixed_in_frame_mobjects(tex_ij2)
-        # self.play(Write(tex_ij2[6:]))
 
 class Isomorphism(Scene):
     def construct(self):
