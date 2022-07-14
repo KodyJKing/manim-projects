@@ -34,57 +34,33 @@ def polar2xy(theta, radius=1):
 
 class Intro(ThreeDScene):
     def construct(self):
-        title = Tex("Imaginary Numbers").to_corner(UL)
+        scene_color_map = { "a": RED, "b": GREEN }
+
+        title = Tex("Complex Numbers").to_corner(UL)
         self.play(Write(title))
 
-        # Introduce definition
-        eqn0 = MathTex("\sqrt{-x}", "=", "\sqrt{", "-1", "\cdot", "x", "}")
-        eqn0b = MathTex("\sqrt{-x}", "=", "\sqrt{", "-1", "}", "\sqrt{", "x", "}")
-        eqn0c = MathTex("\sqrt{-x}", "=", "\sqrt{-1}", "\sqrt{x}")
-        eqn0d = MathTex("\sqrt{-x}", "=", "i", "\sqrt{x}")
-        eqn1 = MathTex( "i", "=", "\sqrt{-1}" )
-        eqn2 = MathTex( "i^2", "=", "\sqrt{", "-1", "}^2" )
-        eqn2b = MathTex( "i^2", "=", "-1" )
+        def get_tex(*strings, **kwargs):
+            return colored_math_tex(*strings, t2c=scene_color_map, **kwargs)
 
-        eqn1.next_to(eqn0, DOWN)
-        eqn2.next_to(eqn1, DOWN)
-        eqn0b.move_to(eqn0)
-        eqn0c.move_to(eqn0)
-        eqn0d.move_to(eqn0)
-        eqn2b.move_to(eqn2)
+        equations = VGroup(
+            tex_form := get_tex(r"a + b i"),
+            tex_ident := get_tex(r"i^2 = -1"),
+        ).arrange(DOWN)
 
-        eqns = VGroup(eqn0, eqn0b, eqn0c, eqn0d, eqn1, eqn2, eqn2b).move_to(ORIGIN)
-        align_eqs(*eqns)
-
-        self.play( Write(eqn0[0]) )
+        self.play(Write(tex_form))
         self.wait()
-        self.play( Write( VGroup( *eqn0[1:] ) ) )
-
-        eqns.remove(eqn0)
-        self.play( TransformMatchingTex( eqn0, eqn0b ) )
+        self.play(Write(tex_ident))
         self.wait()
-        eqns.remove(eqn0b)
-        self.play( TransformMatchingTex( eqn0b, eqn0c ), run_time=0.01 )
-
-        self.play( Write(eqn1) )
-
-        eqns.remove(eqn0c)
-        self.play( TransformMatchingTex( eqn0c, eqn0d ) )
-        
-        self.play( FadeIn( eqn2, shift=DOWN ) )
-        eqns.remove(eqn2)
-        self.play( TransformMatchingTex( eqn2, eqn2b ) )
-        self.wait()
-        self.add_fixed_in_frame_mobjects(eqns)
 
         # Demonstrate absence of i on real number line
         axes = Axes( tips=False, x_range=[-3, 3], y_range=[-3, 9], x_length=4, y_length=4 )
         axes.set_opacity(0)
-        self.play( VGroup( eqns, axes ).animate.arrange(buff=2) )
+        self.play( VGroup( equations, axes ).animate.arrange(buff=2) )
         axes.set_opacity(1)
         square_graph = axes.plot( lambda x: x * x, color=BLUE )
         eq_xsq = MathTex( "y = x^2" ).next_to( axes.c2p(-2,9), UP )
         self.play( Create(axes), Create(square_graph), Write(eq_xsq) )
+        self.play(Indicate(tex_ident))
 
         # Add evaluation indicators to graph
         x_tracker = ValueTracker(2.5)
