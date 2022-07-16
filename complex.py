@@ -45,12 +45,15 @@ class Intro(ThreeDScene):
         equations = VGroup(
             tex_form := get_tex(r"a + b i"),
             tex_ident := get_tex(r"i^2 = -1"),
+            tex_ident2 := get_tex(r"i = \sqrt{-1}"),
         ).arrange(DOWN)
 
         self.play(Write(tex_form))
-        self.wait()
+        self.next_section()
+
         self.play(Write(tex_ident))
-        self.wait()
+        self.play(Write(tex_ident2))
+        self.next_section()
 
         # Demonstrate absence of i on real number line
         axes = Axes( tips=False, x_range=[-3, 3], y_range=[-3, 9], x_length=4, y_length=4 )
@@ -61,6 +64,7 @@ class Intro(ThreeDScene):
         eq_xsq = MathTex( "y = x^2" ).next_to( axes.c2p(-2,9), UP )
         self.play( Create(axes), Create(square_graph), Write(eq_xsq) )
         self.play(Indicate(tex_ident))
+        self.next_section()
 
         # Add evaluation indicators to graph
         x_tracker = ValueTracker(2.5)
@@ -91,6 +95,7 @@ class Intro(ThreeDScene):
         dots.resume_updating()
         self.play( x_tracker.animate.set_value(0), run_time=2 )
         self.wait()
+        self.next_section()
 
         # New axis
         self.play( FadeOut( eq_xsq ) )
@@ -940,7 +945,8 @@ class UnitComplexNumbers(Scene):
         scene_color_map = { 
             "u": U_COLOR, r"\overline{u}":CONJ_COLOR,
             # r"\theta": U_COLOR,
-            "cos":RED, "sin":GREEN
+            "cos":RED, "sin":GREEN,
+            "i": WHITE, "-": WHITE
         }
 
         def get_tex(*strings):
@@ -962,18 +968,33 @@ class UnitComplexNumbers(Scene):
         dot = Dot().set_z_index(10)
         self.add(dot)
 
-        title = Tex("Pure Rotations")
-        title.to_corner(UL)
-        self.add(title[0])
+        # title = Tex("Pure Rotations")
+        # title.to_corner(UL)
+        # self.add(title[0])
 
         tex_mod_equals_one = get_tex("| u | = 1")
-        tex_mod_equals_one.next_to(title, DOWN, 0.5, aligned_edge=LEFT)
-        self.play(Write(tex_mod_equals_one))
-        self.wait()
+        # tex_mod_equals_one.next_to(title, DOWN, 0.5, aligned_edge=LEFT)
+        tex_mod_equals_one.to_corner(UL)
+        # self.play(Write(tex_mod_equals_one))
+        self.add(tex_mod_equals_one)
+
+        # self.next_section()
 
         circle = Circle(1, WHITE)
         circle.set_z_index(-1)
-        self.play(Create(circle))
+        # self.play(FadeIn(circle))
+        self.add(circle)
+
+        self.wait()
+        self.play(Indicate(circle), Indicate(tex_mod_equals_one))
+
+        self.next_section()
+
+        tex_form = get_tex("u = cos(\\theta) + i sin(\\theta)")
+        tex_form.next_to(tex_mod_equals_one, DOWN, aligned_edge=LEFT)
+        self.play(Write(tex_form))
+
+        self.next_section()
 
         line_re = Line(ORIGIN, RIGHT)
         line_re.set_z_index(-2)
@@ -1021,29 +1042,36 @@ class UnitComplexNumbers(Scene):
 
         self.play(Create(dot_u))
         self.play(theta_tracker.animate.set_value(135*DEGREES), run_time=1.5)
+        self.play(FadeOut(numplane))
         self.wait()
 
-        tex_form = get_tex("u = cos(\\theta) + i sin(\\theta)")
-        tex_form.next_to(tex_mod_equals_one, DOWN, aligned_edge=LEFT)
-        self.play(Write(tex_form), FadeOut(numplane))
-
-        tex_form_conj = get_tex("\\overline{u} = cos(\\theta) - i sin(\\theta)")
-        tex_form_conj.next_to(tex_form, DOWN, aligned_edge=LEFT)
-        self.play(Write(tex_form_conj))
+        self.next_section()
 
         dot_uconj = always_redraw(get_dot("\\overline{u}", -1, CONJ_COLOR))
         # self.play(Create(dot_uconj))
         self.play(ReplacementTransform(dot_u.copy(), dot_uconj))
         self.wait()
 
-        self.play(theta_tracker.animate.set_value(75*DEGREES))
+        tex_form_conj = get_tex("\\overline{u} = cos(\\theta) - i sin(\\theta)")
+        tex_form_conj.next_to(tex_form, DOWN, aligned_edge=LEFT)
+        self.play(Write(tex_form_conj))
 
-        tex_inverse = get_tex("\\overline{u} = u^{-1}")
-        tex_inverse.next_to(tex_form_conj, DOWN, aligned_edge=LEFT)
-        self.play(Write(tex_inverse))
-        self.wait()
+        # self.next_section()
+        # self.play(
+        #     Indicate(VGroup( dot_u["label_theta"] )),
+        #     Indicate(VGroup( dot_uconj["label_theta"] )),
+        # )
+        self.next_section()
+        self.play( Indicate(tex_form_conj[4:]) )
 
-        tex_inverse2 = get_tex("u \\overline{u} = 1")
-        tex_inverse2.next_to(tex_inverse, DOWN, aligned_edge=LEFT)
-        self.play(Write(tex_inverse2))
+        # self.play(theta_tracker.animate.set_value(75*DEGREES))
+
+        # tex_inverse = get_tex("\\overline{u} = u^{-1}")
+        # tex_inverse.next_to(tex_form_conj, DOWN, aligned_edge=LEFT)
+        # self.play(Write(tex_inverse))
+        # self.wait()
+
+        # tex_inverse2 = get_tex("u \\overline{u} = 1")
+        # tex_inverse2.next_to(tex_inverse, DOWN, aligned_edge=LEFT)
+        # self.play(Write(tex_inverse2))
 
