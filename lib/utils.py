@@ -57,6 +57,22 @@ def colored_math_tex(*tex_strings, words:List[str]=[], t2c:dict[str, str]={}, **
 
     return result
 
+def colored_tex(
+    *tex_strings, 
+    words:List[str]=[], 
+    t2c:dict[str, str]={},
+    arg_separator="", tex_environment="center",
+    **kwargs
+):
+    return colored_math_tex(
+        *tex_strings, 
+        words=words, 
+        t2c=t2c,
+        arg_separator=arg_separator,
+        tex_environment=tex_environment,
+        **kwargs
+    )
+
 def compose_colored_tex(*color_tex: str, **kwargs):
     """Builds MathTex with colored tex. Argument has form color1, tex1, color2, tex2..."""
     colors = []
