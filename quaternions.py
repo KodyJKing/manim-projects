@@ -3,13 +3,14 @@ from webbrowser import get
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
+from sympy import rad
 from complex import AlgebraicProps
 from lib.TexContainer import TexContainer
 from lib.angle3D import angle3D
-from lib.mathutils import relative_quaternion2, smoothstep
+from lib.mathutils import relative_quaternion, relative_quaternion2, smoothstep
 import numpy as np
 
-from lib.utils import animate_arc_to, animate_replace_tex, colored_math_tex, compose_colored_tex, play_rewrite_sequence, swap_anim, tex_matches
+from lib.utils import animate_arc_to, animate_replace_tex, colored_math_tex, colored_tex, compose_colored_tex, play_rewrite_sequence, style_exposition, swap_anim, tex_matches
 from lib.LabeledArrow import LabeledArrow
 
 SurfaceClass = OpenGLSurface if config.renderer == "opengl" else Surface
@@ -32,6 +33,7 @@ color_map = {
     ihat: RED, jhat: GREEN, khat: BLUE,
     "{i'}": RED, "{j'}": GREEN, "{k'}": BLUE,
     "i'": RED, "j'": GREEN, "k'": BLUE,
+    "$i$": RED, "$j$": GREEN, "$k$": BLUE,
     "i": RED, "j": GREEN, "k": BLUE,
     "b": WHITE,
     "q": MYPINK, r"\theta": MYPINK,
@@ -134,23 +136,93 @@ def standard_axes():
 def jkplane():
     return NumberPlane(x_range=[-10, 10], y_range=[-10, 10]).rotate(PI/2, vj)
 
+def play_commute_proof(scene: Scene, unit_string: str, unit_color: str, position:np.array=ORIGIN):
+    color_map2 = {unit_string:unit_color, "a_2":GRAY, "b_2":GRAY, "v":GRAY}
+    words2 = "a_1 b_1 a_2 b_2".split(" ")
+    get_tex2 = lambda string: colored_math_tex(string, words=words2, t2c=color_map2)
+
+    tc_commute = TexContainer(
+        r"(a_1 + b_1 @)(a_2 + b_2 @)".replace("@", unit_string),
+        get_tex2
+    ).move_to(position)
+    scene.play(Write(tc_commute))
+
+    tc_commute_2 = TexContainer(
+        r"a_1 a_2 + a_1 b_2 @ + b_1 @ a_2 + b_1 @ b_2 @".replace("@", unit_string), 
+        get_tex2
+    ).next_to(tc_commute, DOWN, 0.5)
+    scene.play( TransformMatchingTex(tc_commute.tex.copy(), tc_commute_2.tex, path_arc=30*DEGREES) )
+    scene.wait()
+
+    tc_commute_3 = tc_commute_2.copy()
+    scene.play(tc_commute_3.animate.next_to(tc_commute_2, DOWN, 0.5))
+
+    scene.play( 
+        tc_commute_3.transform(
+            r"a_2 a_1 + b_2 @ a_1 + a_2 b_1 @ + b_2 @ b_1 @".replace("@", unit_string),
+            path_arc=90*DEGREES
+        )
+    )
+    scene.play(swap_anim( tc_commute_3.tex[3:6], tc_commute_3.tex[7:10] ))
+    scene.wait()
+
+    tc_commuted = TexContainer(
+        r"(a_2 + b_2 @)(a_1 + b_1 @)".replace("@", unit_string),
+        get_tex2
+    ).next_to(tc_commute_3, DOWN, 0.5)
+    scene.play( TransformMatchingTex(tc_commute_3.tex.copy(), tc_commuted.tex, path_arc=30*DEGREES) )
+    scene.wait()
+
+    equation = VGroup(tc_commute, Tex("="), tc_commuted)
+    scene.play(
+        FadeOut(tc_commute_2, tc_commute_3),
+        equation.animate.arrange()
+    )
+
+    return equation
+
 class QuatDefinition(Scene):
     def construct(self):
         _color_map = color_map | { "{i}": RED, "+":WHITE }
         tex_kw = { "t2c":_color_map }
-        
-        tex_form = colored_math_tex("a + b i", **tex_kw)
-        # tex_ident = colored_math_tex("i^2 = j^2 = k^2 = i j k = -1", **tex_kw)
-        # equations = VGroup(tex_form, tex_ident).arrange(DOWN).move_to(ORIGIN)
 
+        title = Tex(r"Chapter 3: Intro to Quaternions")
+        self.play(FadeIn(title))
+        self.wait()
+        self.play(FadeOut(title))
+
+        tex_form = colored_math_tex("a + b i", **tex_kw)
         self.play( Write( tex_form ) )
+        self.wait()
+
+        exposition1 = colored_tex(r"We can extend complex numbers by adding\\two more distinct imaginary elements, $j$ and $k$.", t2c=color_map)
+        style_exposition(exposition1).to_edge(UP)
+        self.play(Write(exposition1), run_time=3)
         self.wait()
 
         self.play( TransformMatchingTex(tex_form, tex_form := colored_math_tex("a + b i + c j + d k", **tex_kw).move_to(tex_form) ) )
         self.wait()
 
-        # self.add(index_labels(tex_form))
-        # self.wait()
+        self.play(FadeOut(exposition1))
+        exposition2 = Tex(r"Because they have 4 components, you could\\think of quaternions as 4D vectors...")
+        style_exposition(exposition2).to_edge(UP)
+        self.play(Write(exposition2), run_time=2)
+
+        group_4vec = VGroup(
+            MathTex(r"\Leftrightarrow"),
+            MathTex(r"\begin{bmatrix}a\\b\\c\\d\end{bmatrix}")
+        ).arrange(RIGHT).next_to(tex_form, RIGHT)
+        self.play(Write(group_4vec))
+        self.wait()
+        self.play(FadeOut(group_4vec, exposition2))
+
+        exposition3 = Tex(
+            r"However, for the purpose of understanding 3D rotations,\\",
+            r"it will be more helpful to think of them as 3D vectors\\",
+            r"with an extra component tacked on."
+        )
+        style_exposition(exposition3).to_edge(UP)
+        self.play(Write(exposition3), run_time=3)
 
         def labeled_rect(contents: Mobject, label: str):
             rect = SurroundingRectangle(contents)
@@ -166,46 +238,267 @@ class QuatDefinition(Scene):
         self.play(Write(real_part_rect))
         self.wait()
 
+        group_3vec = VGroup(
+            MathTex(r"\Leftrightarrow"),
+            tex_real_and_vec := MathTex(r"(a,\tiny\begin{bmatrix}b\\c\\d\end{bmatrix})")
+        ).arrange(RIGHT).next_to(tex_form, RIGHT)
+        self.play(Write(group_3vec))
+        self.wait()
+        self.play(Transform(tex_real_and_vec, MathTex(r"(a,\vec{v})").move_to(tex_real_and_vec, LEFT)))
+        self.wait()
+        self.play(FadeOut(group_3vec))
+
+        self.play(FadeOut(exposition3))
+        exposition4 = VGroup(
+            line1 := colored_tex(
+                r"The vector part of a quaternion tells us which axis we're rotating about,",
+                t2c={"vector part":YELLOW}
+            ),
+            line2 := colored_tex(
+                r"and real part tells us what angle we're rotating by.",
+                t2c={"real part":YELLOW}
+            )
+        ).arrange(DOWN)
+        style_exposition(exposition4).to_edge(UP)
+        self.play(Write(line1))
+        self.wait()
+
+        self.play(Write(line2))
+        self.wait()
+
+        self.play(FadeOut(exposition4))
+        exposition5 = VGroup(
+            line1 := colored_tex(
+                r"If a quaternion's real part is zero, it's called a vector quaternion.",
+                t2c={"vector quaternion":YELLOW}
+            ),
+            line2 := colored_tex(
+                "Vector quaternions are the things we will be rotating.",
+                t2c={"Vector quaternions":YELLOW}
+            ),
+        ).arrange(DOWN)
+        style_exposition(exposition5).to_edge(UP)
+        self.play(Write(line1))
+
         tex_vec_quat = colored_math_tex("x i + y j + z k", **tex_kw)
         vec_quat_rect = labeled_rect(tex_vec_quat, "vector quaternion")
         vec_quat_group = VGroup(tex_vec_quat, vec_quat_rect).next_to(tex_form, DOWN, buff=0.5)
         self.play(Write(vec_quat_group))
         self.wait()
 
-        self.play(FadeOut(tex_form, vector_part_rect, real_part_rect, vec_quat_group))
+        self.play(Write(line2))
+        self.wait()
+
+        self.play(FadeOut(tex_form, vector_part_rect, real_part_rect, vec_quat_group, exposition5))
+
+        exposition6 = Tex("But first we need to go over how to multiply quaternions...")
+        style_exposition(exposition6)
+        self.play(Write(exposition6))
+        self.wait()
+
+class QuatDefinition_AxisAngleVisual(ThreeDScene):
+    def construct(self):
+        axes = ThreeDAxes(
+            x_range=[-1, 1], y_range=[-1, 1], z_range=[-1, 1],
+            x_length=6, y_length=6, z_length=6,
+            axis_config={"stroke_width":4},
+            tips=False
+        )
+        direction = np.array([1, 1, 1])
+        n = normalize(direction)
+        arrow = Arrow(ORIGIN, direction * 3, buff=0, color=RED).rotate_about_origin(PI/2+PI/16, n)
+        arrow_partial = Line(direction*(3/4+.1), direction*3, color=RED).rotate_about_origin(PI/2+PI/16, n)
+        line = DashedLine(ORIGIN - direction * 5, direction * 5, color=RED)
+
+        self.begin_ambient_camera_rotation()
+        self.set_camera_orientation(phi=65*DEGREES, theta=0*DEGREES)
+
+        self.add(axes)
+        self.play(Create(arrow))
+        self.play(FadeIn(line))
+
+        self.wait(5)
+
+        radius = 0.25
+        arc = CurvedArrow(
+            RIGHT*radius,
+            DOWN*radius,
+            arc_center=ORIGIN,
+            angle=TAU*3/4,
+            tip_length=0.2
+        )
+        quat = relative_quaternion(OUT, n)
+        angle, axis = angle_axis_from_quaternion(quat)
+        arc.move_to(ORIGIN).set_z_index(-1)
+        arc.rotate_about_origin(angle, axis)
+        arc.shift(direction*2)
+        
+        self.play(Create(arc))
+        self.wait(3)
+
+        self.stop_ambient_camera_rotation()
+
+        obj = Dodecahedron(faces_config={"fill_opacity":0.75})
+        self.play(FadeIn(obj), FadeIn(arrow_partial))
+        self.play(Rotate(obj, TAU*3/4, n, ORIGIN), run_time=3)
+
+        self.wait()
 
 class QuatMultiplication(Scene):
     def construct(self):
         _color_map = color_map | { "{i}": RED, "+":WHITE }
         tex_kw = { "t2c":_color_map }
 
-        title = Tex(r"Quaternion Multiplication").to_corner(UL)
-        self.play(FadeIn(title))
+        exposition1 = Tex(
+            r"We've been assuming that complex multiplication and addition", 
+            " have the same algebraic properties as real multiplication and addition...",
+        )
+        style_exposition(exposition1)
+        self.play(Write(exposition1))
+        self.wait()
+
+        self.play(FadeOut(exposition1))
+        exposition2 = VGroup(
+            line1 := Tex(
+                r"Quaternions have all the same properties\\except their multiplication isn't commutative.",
+                tex_to_color_map={"their multiplication isn't commutative":RED}
+            ),
+            line1b := VGroup(
+                Tex(r"For example, "),
+                colored_math_tex(r"i j = k \neq j i = -k", t2c=color_map)
+            ).arrange(),
+            line2 := Tex(
+                r"But real numbers still commute with any quaternion."
+            )
+        ).arrange(DOWN, buff=0.35).shift(UP)
+        exposition2.scale(2/3)
+        self.play(Write(line1))
+        self.wait()
+        self.play(Write(line1b))
+        self.wait()
+        self.play(Write(line2))
+
+        tc_commute = TexContainer(math_tex(*"3 (j+2k)".split(" ")))
+        tc_commute.next_to(exposition2, DOWN, 0.5)
+        self.play(Write(tc_commute))
+        self.play(tc_commute.transform(math_tex(*"(j+2k) 3".split(" ")), path_arc=-120*DEGREES))
+        self.wait()
+
+        self.play(FadeOut(exposition2, tc_commute))
+        exposition3 = Tex(
+            r"You can show some other quaternions commute too,\\for instance complex quaternions still commute with each other...",
+            tex_to_color_map={"complex quaternions":YELLOW}
+        ).to_edge(UP)
+        style_exposition(exposition3)
+        self.play(Write(exposition3), run_time=3)
+        self.wait()
+
+        tmp_equation = play_commute_proof(self, "i", RED, UP*1.5)
+        self.wait()
+        self.play(FadeOut(tmp_equation, exposition3))
 
         tex_ident = colored_math_tex("i^2 = j^2 = k^2 = i j k = -1", **tex_kw)
+        exposition4 = VGroup(
+            line1 := Tex(r"This equation is used to define quaternion multiplication."),
+            line2 := colored_tex("Like $i$, $j$ and $k$ also square to $-1$.", t2c=color_map),
+            line3 := Tex(r"This last term defines the product of distinct imaginary units."),
+        ).arrange(DOWN, buff=0.35)
+        style_exposition(exposition4)#.to_edge(UP)
+        exposition4.next_to(tex_ident, UP, 0.5)
+        self.play(Write(line1))
+
         self.play( Write( tex_ident ) )
         self.wait()
 
-        ijk_table = pure_quat_times_table(color_map).scale(2/3).move_to(RIGHT * 3)
-        cross_table = vec_cross_table(color_map)
-        dot_table = vec_dot_table(color_map)
-        dot_table.next_to(cross_table, DOWN)
-        vec_tables = VGroup(cross_table, dot_table).scale(.5).move_to(LEFT * 3)
+        self.play(Write(line2))
+        self.wait()
 
+        self.play(Write(line3))
+        self.play(Indicate(tex_ident[6:]))
+        self.wait()
+        self.play(FadeOut(exposition4))
+
+        exposition5 = VGroup(
+            line1 := Tex(r"If you play around with this equation, you can build this times table."),
+            line2 := Tex(r"The algebra is a bit tedious, so we'll breeze through it,"),
+            line3 := Tex(r"but you can pause and follow along if you're curious.")
+        ).arrange(DOWN)
+        style_exposition(exposition5).to_edge(UP)
+
+        ijk_table = pure_quat_times_table(color_map).scale(2/3).move_to(RIGHT * 3)
+
+        self.play(Write(line1))
         self.play( tex_ident.animate.move_to(LEFT * 3) )
-        self.play( Create(ijk_table) )
+
+        arrow = CurvedArrow(
+            tex_ident.get_center() + UP * 0.5,
+            ijk_table.get_corner(UL) + LEFT * 0.25 + DOWN * 0.5,
+            angle=-60*DEGREES
+        )
+
+        self.play( Create(arrow), Create(ijk_table) )
         self.wait(3)
-        self.play( FadeOut(tex_ident) )
-        self.play( FadeIn(vec_tables) )
+
+        self.play(Write(line2))
+        self.play(Write(line3))
+        self.wait()
+
+class CrossDotProduct(Scene):
+    def construct(self):
+        scene_color_map = {
+            "vector quaternions":YELLOW, "cross product":YELLOW, "dot product":YELLOW
+        }
+
+        ijk_table = pure_quat_times_table(color_map).scale(2/3)
+        cross_table = vec_cross_table(color_map).scale(0.5)
+        dot_table = vec_dot_table(color_map).scale(0.5)
+
+        self.add(ijk_table)
+    
+        exposition1 = Tex(
+            r"If you compare this times table to the\\times tables for the cross product and dot product...",
+            tex_to_color_map=scene_color_map
+        )
+        style_exposition(exposition1)
+        exposition1.next_to(ijk_table, UP, 1)
+        self.play(Write(exposition1))
+
+        alpha_tracker = ValueTracker(0)
+        alpha_updater = lambda mobj: mobj.set_opacity(alpha_tracker.get_value())
+
+        cross_table.add_updater(alpha_updater)
+        dot_table.add_updater(alpha_updater)
+        tables = VGroup(cross_table, dot_table, ijk_table)
+        self.play(tables.animate.arrange(buff=0.35), alpha_tracker.animate.set_value(1))
+        cross_table.clear_updaters()
+        dot_table.clear_updaters()
+
+        exposition2 = Tex(
+            r"You can see that the product of two vector quaternions\\is their cross product minus their dot product.",
+            tex_to_color_map=scene_color_map
+        )
+        style_exposition(exposition2)
+        exposition2.next_to(tables, UP, 1)
+        self.play(FadeOut(exposition1))
+        self.play(Write(exposition2))
         self.wait()
 
         equation_quat_cross_dot = MathTex(r" uv = u \times v - u \cdot v ", tex_to_color_map=color_map)
-        equation_quat_cross_dot.next_to(ijk_table, UP)
-        self.play( Write(equation_quat_cross_dot) )
-        self.wait()
+        equation_quat_cross_dot.move_to(ijk_table)
+        equation_quat_cross_dot.add_updater(alpha_updater)
 
-        self.play(FadeOut(ijk_table, vec_tables))
-        self.play(equation_quat_cross_dot.animate.move_to(ORIGIN))
+        tmp_group = VGroup(exposition2, equation_quat_cross_dot)
+        self.play(
+            tmp_group.animate.arrange(buff=0.5).next_to(tables, UP, 1),
+            alpha_tracker.set_value(0).animate.set_value(1)
+        )
+        
+        # equation_quat_cross_dot.next_to(ijk_table, UP)
+        # self.play( Write(equation_quat_cross_dot) )
+        # self.wait()
+
+        # self.play(FadeOut(ijk_table, vec_tables))
+        # self.play(equation_quat_cross_dot.animate.move_to(ORIGIN))
 
 class QuatProps(AlgebraicProps):
     def is_quaternion_scene(self):
@@ -234,9 +527,11 @@ class TableDerivation(Scene):
             for j in range(3):
                 get_table_entry(i, j).set_opacity(0)
 
-        self.play(Write(tex_ident))
-        self.add(tex_ident)
-        self.play(FadeIn(table))
+        # self.play(Write(tex_ident))
+        # self.add(tex_ident)
+        # self.play(FadeIn(table))
+        self.add(tex_ident, table)
+        self.wait()
 
         # Add squares of i,j,k to table.
         for i in range(3):
@@ -366,7 +661,7 @@ class TableDerivation(Scene):
 
         self.play( FadeOut(tex_ident), table.animate.move_to(ORIGIN).scale(2/3 / 0.5) )
 
-# Use in appendix
+# Don't use
 class UComplex(Scene):
     def construct(self):
         UCOLOR = YELLOW
@@ -446,34 +741,7 @@ class UComplex(Scene):
 
         self.play( groups.animate.to_edge(UP) )
 
-        def play_commute_proof():
-            color_map2 = {r"\hat{u}":UCOLOR, "a_2":GRAY, "b_2":GRAY, "v":GRAY}
-            words2 = "a_1 b_1 a_2 b_2".split(" ")
-            get_tex2 = lambda string: colored_math_tex(string, words=words2, t2c=color_map2)
-
-            tc_commute = TexContainer(r"(a_1 + b_1 \hat{u})(a_2 + b_2 \hat{u})", get_tex2)
-            self.play(Write(tc_commute))
-
-            tc_commute_2 = TexContainer(r"a_1 a_2 + a_1 b_2 \hat{u} + b_1 \hat{u} a_2 + b_1 \hat{u} b_2 \hat{u}", get_tex2).next_to(tc_commute, DOWN, 0.5)
-            self.play( TransformMatchingTex(tc_commute.tex.copy(), tc_commute_2.tex, path_arc=30*DEGREES) )
-            self.wait()
-
-            tc_commute_3 = tc_commute_2.copy()
-            self.play(tc_commute_3.animate.next_to(tc_commute_2, DOWN, 0.5))
-
-            self.play( tc_commute_3.transform(r"a_2 a_1 + b_2 \hat{u} a_1 + a_2 b_1 \hat{u} + b_2 \hat{u} b_1 \hat{u}", path_arc=90*DEGREES) )
-            self.play(swap_anim( tc_commute_3.tex[3:6], tc_commute_3.tex[7:10] ))
-            self.wait()
-
-            tc_commuted = TexContainer(r"(a_2 + b_2 \hat{u})(a_1 + b_1 \hat{u})", get_tex2).next_to(tc_commute_3, DOWN, 0.5)
-            self.play( TransformMatchingTex(tc_commute_3.tex.copy(), tc_commuted.tex, path_arc=30*DEGREES) )
-            self.wait()
-
-            self.play(
-                FadeOut(tc_commute_2, tc_commute_3),
-                VGroup(tc_commute, Tex("="), tc_commuted).animate.arrange()
-            )
-        play_commute_proof()
+        play_commute_proof(self, r"\hat{u}", UCOLOR)
 
 # Don't use
 class ThreeDRework(ThreeDScene):

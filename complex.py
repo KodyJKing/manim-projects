@@ -38,23 +38,29 @@ class Intro(ThreeDScene):
         def get_tex(*strings, **kwargs):
             return colored_math_tex(*strings, t2c=scene_color_map, **kwargs)
 
+        chapter = Tex(r"Chapter 1: Intro to Complex Numbers")
+        self.play(FadeIn(chapter))
+        self.wait()
+        self.play(FadeOut(chapter))
+
         exposition1 = VGroup(
-            Tex(
+            line1 := Tex(
                 r"A complex number is the sum of a real number and an imaginary number.",
                 tex_to_color_map={"real number": RED, "imaginary number": GREEN}
             ),
-            VGroup(
+            line2 := VGroup(
                 Tex( "They can be written in the form" ),
                 get_tex("a + b i \\text{,}"),
                 Tex("where $a$ and $b$ are real numbers", tex_to_color_map={"$a$": RED, "$b$": GREEN})
             ).arrange(),
-            Tex(
+            line3 := Tex(
                 "and $i$ is $\sqrt{-1}$, the \"imaginary unit\"."
             )
 
-        ).arrange(DOWN, aligned_edge=LEFT).scale(2/3).to_corner(UL)
+        ).arrange(DOWN).scale(2/3).to_edge(UP)
 
-        self.play(Write(exposition1), run_time=4)
+        self.play(Write(line1), run_time=2)
+        self.wait()
 
         equations = VGroup(
             tex_form := get_tex(r"a + b i"),
@@ -62,10 +68,11 @@ class Intro(ThreeDScene):
             tex_ident2 := get_tex(r"i^2 = -1", words=["i", "=", "-1"]),
         ).arrange(DOWN)
 
+        self.play(Write(line2))
         self.play(Write(tex_form))
-        self.next_section()
+        self.wait()
 
-
+        self.play(Write(line3))
         self.play(Write(tex_ident))
         self.wait()
         self.play(TransformMatchingTex(tex_ident.copy(), tex_ident2, shift=ORIGIN))
@@ -74,9 +81,15 @@ class Intro(ThreeDScene):
 
         self.play(FadeOut(exposition1))
         exposition3 = VGroup(
-            line1 := Tex("You can see that $i$ is not a real number by looking at a plot of $y=x^2$."),
-            line2 := Tex("No value on the real number line squares to a negative.")
-        ).arrange(DOWN, aligned_edge=LEFT).scale(2/3).to_corner(UL)
+            line1 := Tex(
+                "You can verify that $i$ is not a real number by looking at a plot of $y=x^2$.",
+                tex_to_color_map={"$i$ is not a real number":YELLOW}
+            ),
+            line2 := Tex(
+                "No value on the real number line squares to a negative.",
+                substrings_to_isolate=["real number line"]
+            )
+        ).arrange(DOWN).scale(2/3).to_edge(UP)
         self.play(Write(line1))
 
         # Demonstrate absence of i on real number line
@@ -87,7 +100,8 @@ class Intro(ThreeDScene):
         square_graph = axes.plot( lambda x: x * x, color=BLUE )
         self.play( Create(axes), Create(square_graph) )
         self.play(Write(line2))
-        self.play( Indicate( axes.get_axis(0) ) )
+        # self.play(Indicate(line2.get_part_by_tex("real number line")))
+        self.play( Indicate(line2.get_part_by_tex("real number line"), 1.1), Indicate( axes.get_axis(0) ) )
         self.next_section()
 
         # Add evaluation indicators to graph
@@ -120,7 +134,10 @@ class Intro(ThreeDScene):
 
         self.play(FadeOut(exposition3))
         exposition4 = VGroup(
-            line1 := Tex("You can think of imaginary numbers as lying on a separate number line"),
+            line1 := VGroup(
+                Tex("Instead, you can think of imaginary numbers"),
+                Tex("as lying on a separate number line,")
+            ).arrange(DOWN, aligned_edge=LEFT),
             line2 := Tex("the imaginary number line.")
         ).arrange(DOWN, aligned_edge=LEFT).scale(2/3).to_corner(UL)
 
@@ -166,21 +183,27 @@ class Intro(ThreeDScene):
 
         self.wait()
 
+        tex_arrow = MathTex(r"\Leftrightarrow").set_opacity(0)
+        tex_vector = MathTex(r"\begin{bmatrix}a\\b\end{bmatrix}").set_opacity(0)
+        tex_arrow.next_to(tex_form)
+        tex_vector.next_to(tex_arrow)
+        group_veclike = VGroup(tex_form, tex_arrow, tex_vector)
+
         exposition5 = VGroup(
             line1 := Tex("Since a complex number has two components,"),
             line2 := Tex("a real one", " and an imaginary one,",
                 tex_to_color_map={"real": RED, "imaginary": GREEN}),
-            line3 := Tex("they can be thought of as 2D vectors."),
-        ).arrange(DOWN, aligned_edge=LEFT).scale(2/3)
+            line3 := Tex("they can be thought of like 2D vectors..."),
+        ).arrange(DOWN).scale(2/3)
 
         VGroup(
             exposition5,
-            tex_form_target := tex_form.copy()
-        ).arrange(buff=2).to_edge(LEFT)
+            group_target := group_veclike.copy()
+        ).arrange(DOWN)
         
         self.play(
             FadeOut( exposition4, axes, axes_im, square_graph, square_graph_im, dots, tex_ident, tex_ident2 ),
-            tex_form.animate.move_to(tex_form_target)
+            group_veclike.animate.move_to(group_target)
         )
 
         part_a = tex_form[0]
@@ -196,10 +219,7 @@ class Intro(ThreeDScene):
         self.play( Indicate(part_b))
         self.play(Write(line3))
 
-        tex_arrow = MathTex(r"\Leftrightarrow")
-        tex_vector = MathTex(r"\begin{bmatrix}a\\b\end{bmatrix}")
-        group_veclike = VGroup(tex_arrow, tex_vector).arrange().next_to(tex_form, RIGHT)
-        self.play(Write(group_veclike))
+        self.play(Write(VGroup(tex_arrow, tex_vector).set_opacity(1)))
 
         self.wait()
 
@@ -220,10 +240,8 @@ class ComplexNumbers(Scene):
         # self.play(Create(numplane))
         # self.wait()
 
-        exposition1 = VGroup(
-            Tex("Because complex numbers are 2D in a sense,"),
-            Tex("it helps to visualize them in the complex plane.", tex_to_color_map={"complex plane": YELLOW}),
-        ).arrange(DOWN).scale(2/3)
+        exposition1 = Tex("We can plot these vector-like numbers in the complex plane.", tex_to_color_map={"complex plane": YELLOW})
+        exposition1.scale(2/3)
         self.play(Write(exposition1), run_time=2)
 
         self.wait(2)
@@ -259,9 +277,9 @@ class ComplexNumbers(Scene):
         ).scale(2/3).to_corner(UL)
         self.play(Write(exposition2))
         
-        # Define arg and modulus
-        exposition3 = Tex("They have length,").scale(2/3).next_to(exposition2, DOWN, 1, LEFT).shift(RIGHT)
-        self.play(Write(exposition3))
+        # # Define arg and modulus
+        # exposition3 = Tex("They have length,").scale(2/3).next_to(exposition2, DOWN, 1, LEFT).shift(RIGHT)
+        # self.play(Write(exposition3))
         
         brace = Brace(arrow_v, direction=arrow_v.copy().rotate(PI/2).get_unit_vector() )
         brace_tex = MathTex("r")
@@ -269,15 +287,22 @@ class ComplexNumbers(Scene):
         self.play(Create(brace), Write(brace_tex))
         self.wait()
 
-        exposition4 = Tex("and direction.").scale(2/3).next_to(exposition3, DOWN)
-        self.play(Write(exposition4))
+        # exposition4 = Tex("and direction.").scale(2/3).next_to(exposition3, DOWN)
+        # self.play(Write(exposition4))
 
         angle = Angle(arrow_a, arrow_v, 1 ).set_z_index(-1)
         angle_tex = MathTex("\\theta" ).move_to(angle_label_pos(arrow_a, arrow_v, 1 + 3 * SMALL_BUFF))
         self.play( Create(angle), Write(angle_tex) )
         self.wait()
 
-        self.play(FadeOut(exposition3, exposition4))
+        self.play(dot_v.animate_relabel(
+            MathTex(
+                r"r( cos\, \theta + i sin\, \theta )",
+                tex_to_color_map={ "cos": RED, "sin": GREEN }
+            )
+        ))
+
+        # self.play(FadeOut(exposition3, exposition4))
 
         exposition5 = Tex(
             "This length is called the number's modulus,",
@@ -480,7 +505,8 @@ class AlgebraicProps(Scene):
             # self.add(index_labels(tex_commute))
             self.play(Create(Underline(tex_commute[13:], color=RED)))
         else:
-            self.play(Write(field_blurb))
+            # self.play(Write(field_blurb))
+            pass
         self.wait()
 
 class RotationPreview(Scene):
@@ -493,8 +519,10 @@ class RotationPreview(Scene):
         u = (math.cos(u_angle) + 1j * math.sin(u_angle)) * u_modulus
         v = 2 + 1j
 
-        # title = Tex("Complex Multiplication").to_corner(UL)
-        # self.add(title)
+        chapter = Tex("Chapter 2: Complex Rotation")
+        self.play(FadeIn(chapter))
+        self.wait()
+        self.play(FadeOut(chapter))
 
         exposition1 = Tex(
             r"Remarkably, when we multiply complex numbers, one term gets \\ rotated and scaled by the other like this...",

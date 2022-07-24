@@ -2,6 +2,10 @@ from typing import Callable, Iterable, List, Tuple
 from manim import *
 import re
 
+def style_exposition(mobj: VMobject):
+    mobj.scale(2/3).set_stroke(BLACK, 5, 1, True)
+    return mobj
+
 def animate_replace_tex(tex: MathTex, text_or_tex: str | MathTex, tex_to_color_map=None, aligned_edge=LEFT):
     if isinstance(text_or_tex, str):
         text_or_tex = MathTex( text_or_tex, tex_to_color_map=tex_to_color_map )
