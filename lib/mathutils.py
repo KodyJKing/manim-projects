@@ -1,4 +1,5 @@
 import numpy as np
+from manim import *
 from manim.utils.space_ops import (
     quaternion_mult,
     quaternion_from_angle_axis,
@@ -51,6 +52,9 @@ def rotate_vec_by_quat(vec, quat):
         quaternion_mult( quat, np.array([ 0, *vec ]) ),
         quat_inv
     )[1:]
+
+def polar2xy(theta, radius=1):
+    return RIGHT * np.cos(theta) * radius + UP * np.sin(theta) * radius
 
 # print("\n=Tests===")
 # print(relative_quaternion(

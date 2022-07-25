@@ -7,7 +7,7 @@ from sympy import rad
 from complex import AlgebraicProps
 from lib.TexContainer import TexContainer
 from lib.angle3D import angle3D
-from lib.mathutils import relative_quaternion, relative_quaternion2, smoothstep
+from lib.mathutils import polar2xy, relative_quaternion, relative_quaternion2, smoothstep
 import numpy as np
 
 from lib.utils import animate_arc_to, animate_replace_tex, colored_math_tex, colored_tex, compose_colored_tex, play_rewrite_sequence, style_exposition, swap_anim, tex_matches
@@ -504,7 +504,6 @@ class QuatProps(AlgebraicProps):
     def is_quaternion_scene(self):
         return True
 
-# Use in appendix
 class TableDerivation(Scene):
     def construct(self):
         _color_map = color_map | { 
@@ -661,273 +660,81 @@ class TableDerivation(Scene):
 
         self.play( FadeOut(tex_ident), table.animate.move_to(ORIGIN).scale(2/3 / 0.5) )
 
-# Don't use
-class UComplex(Scene):
-    def construct(self):
-        UCOLOR = YELLOW
-
-        _color_map = color_map | { 
-            r"\hat{u}": UCOLOR,
-            r"\vec{a}":RED, r"\vec{b}":GREEN, r"\hat{n}":BLUE
-        }
-        sintheta = r"sin(\theta)"
-        costheta = r"cos(\theta)"
-        words = ["1", "{1}", "-1", sintheta, costheta, "a", "b", "c", "d"]
-        get_tex = lambda string, words=words, **kwargs: colored_math_tex(string, t2c=_color_map, words=words, **kwargs)
-
-        tc_u = TexContainer(r"\hat{u}", get_tex)
-        tex_cross = get_tex(r"\vec{a} \times \vec{b} = \hat{n}|\vec{a}||\vec{b}|sin(\theta)").to_corner(UL)
-        tex_dot = get_tex(r"\vec{a} \cdot \vec{b} = |\vec{a}||\vec{b}|cos(\theta)").next_to(tex_cross, DOWN)
-
-        self.play(Write(tc_u))
-        self.play(tc_u.transform(r"\hat{u}\hat{u}"))
-        self.wait()
-
-        self.play(tc_u.transform(r"\hat{u} \times \hat{u} - \hat{u} \cdot \hat{u}"))
-
-        self.play(FadeIn(tex_cross))
-        self.play(Indicate(tex_cross.get_part_by_tex(sintheta)))
-        self.wait()
-
-        to_remove = tc_u.tex[:3]
-        for part in to_remove:
-            if hasattr(part, "tex_string"):
-                part.tex_string += "_"
-        self.play(tc_u.transform(r"- \hat{u} \cdot \hat{u}"))
-
-        self.play(Write(tex_dot))
-        self.play(Indicate(tex_dot.get_part_by_tex(costheta)))
-        self.wait()
-
-        self.play(tc_u.transform(r"- |\hat{u}||\hat{u}|"))
-        self.play(tc_u.transform(r"-1", match=False))
-        self.wait(0.5)
-        self.play(FadeOut(tex_cross, tex_dot), tc_u.transform(r"\hat{u}^2 = -1"))
-        self.wait()
-
-        tex_ucomp = get_tex(r"a + b\hat{u}").next_to(tc_u, DOWN)
-        self.play(Write(tex_ucomp))
-
-        ucomp_group = VGroup(tc_u, tex_ucomp)
-        comp_group = VGroup(
-            get_tex(r"i^2 = -1"),
-            get_tex(r"a + b i")
-        ).arrange(DOWN).next_to(ucomp_group)
-
-        groups = VGroup(
-            ucomp_group,
-            arrow := get_tex(r"\leftrightarrow").set_opacity(0),
-            comp_group.set_opacity(0)
-        )
-        self.play(groups.animate.arrange(buff=0.5))
-
-        arrow.set_opacity(1)
-        comp_group.set_opacity(1)
-
-        self.play(Write(VGroup(arrow, comp_group)))
-
-        self.play(
-            Create( rect := SurroundingRectangle( comp_group, color=RED ) ),
-            Write( label := Tex("complex-numbers", color=RED)
-                .scale(0.5).next_to(rect, UP, buff=0.1) ),
-        )
-        self.play(
-            Create( urect := SurroundingRectangle( ucomp_group, color=UCOLOR ) ),
-            Write( ulabel := Tex("u-complex-numbers", color=UCOLOR)
-                .scale(0.5).next_to(urect, UP, buff=0.1) ),
-        )
-
-        groups.add(rect, label, urect, ulabel)
-
-        self.play( groups.animate.to_edge(UP) )
-
-        play_commute_proof(self, r"\hat{u}", UCOLOR)
-
-# Don't use
-class ThreeDRework(ThreeDScene):
-    def construct(self):
-        VCOLOR = WHITE
-
-        self.set_camera_orientation(phi=65*DEGREES, theta=20*DEGREES)
-
-        # self.begin_ambient_camera_rotation(0.02 * 6)
-        # self.begin_3dillusion_camera_rotation(0.25)
-
-        nhat = r"\hat{n}"
-        that = r"\hat{t}"
-        bhat = r"\hat{b}"
-        _color_map = color_map | {
-            nhat:RED, that:GREEN, bhat:BLUE,
-            "v": VCOLOR
-        }
-        def get_tex(*string):
-            return colored_math_tex(*string, t2c=_color_map)
-
-        axes = ThreeDAxes(x_range=[-5, 5], y_range=[-5, 5], z_range=[-5, 5], x_length=10, y_length=10, z_length=10)
-        numplane = NumberPlane(x_range=[-10, 10], y_range=[-10, 10])
-        numplane.set_opacity(0).rotate(PI/2, vj)
-        self.add(numplane)
-        self.add(axes)
-
-        arrow_n = Arrow(ORIGIN, vi, buff=0, color=RED)
-        arrow_t = Arrow(ORIGIN, vj, buff=0, color=GREEN).rotate(PI/2, vj)
-        arrow_b = Arrow(ORIGIN, vk, buff=0, color=BLUE)
-        arrow_v = Arrow(ORIGIN, 2*LEFT + UP, buff=0, color=VCOLOR, tip_length=0.25).rotate(PI/2, vj, ORIGIN)
-
-        def position_arrow_label(arrow, tex, dist=0.5):
-            return tex.move_to(arrow.get_end() + arrow.get_unit_vector() * dist)
-        def get_arrow_label(arrow, tex, dist=.5):
-            get_tex = tex if callable(tex) else lambda: tex.copy()
-            return always_redraw(lambda: position_arrow_label(arrow, get_tex(), dist))
-
-        tex_n = get_arrow_label(arrow_n, get_tex(nhat).set_stroke(BLACK, 5, 1, True))
-        tex_t = get_arrow_label(arrow_t, get_tex(that).set_stroke(BLACK, 5, 1, True))
-        tex_b = get_arrow_label(arrow_b, get_tex(bhat).set_stroke(BLACK, 5, 1, True))
-        tex_v = get_arrow_label(arrow_v, get_tex("v").set_stroke(BLACK, 5, 1, True), 0.25)
-        self.add_fixed_orientation_mobjects( tex_n, tex_t, tex_b )
-
-        self.play( FadeIn( arrow_n, arrow_t, arrow_b), Create(tex_n), Create(tex_t), Create(tex_b) )
-        self.wait()
-
-        self.play( 
-            Indicate(tex_t),
-            Indicate(tex_b),
-            numplane.animate.set_opacity(0.25)
-        )
-        self.wait()
-
-        self.add_fixed_orientation_mobjects( tex_v )
-        self.play( FadeIn(arrow_v), Write(tex_v) )
-
-        tex_nv = get_tex(r"\hat{n} v = \hat{n} \times v - \hat{n} \cdot v").set_stroke(BLACK, 5, 1, True)
-        self.add_fixed_in_frame_mobjects(tex_nv)
-        tex_nv.to_corner(UL)
-        self.play(Write(tex_nv))
-        self.wait()
-
-        self.play(Indicate(tex_nv[7:]))
-        self.wait()
-        self.play(Unwrite(tex_nv[6:]))
-        self.wait()
-
-        def animate_rotate_v(label_text, angle):
-            alpha_tracker = ValueTracker(0)
-            arrow = arrow_v.copy()
-            label = get_arrow_label(
-                arrow,
-                lambda: get_tex(label_text)
-                    .set_stroke(BLACK, 5, 1, True)
-                    .set_opacity(alpha_tracker.get_value()), 
-                0.4
-            )
-            self.add_fixed_orientation_mobjects(label)
-            self.play( Rotate(arrow, angle, vi, ORIGIN), alpha_tracker.animate.set_value(1) )
-            return VGroup(arrow, label)
-        
-        arrow_nv = animate_rotate_v(nhat + " v", PI/2)
-
-        self.play(FadeOut(axes, arrow_n, arrow_t, arrow_b, tex_n, tex_t, tex_b))
-        
-        tex_vn = get_tex(r"v \hat{n} = - \hat{n} v")
-        tex_vn.set_stroke(BLACK, 5, 1, True)
-        self.add_fixed_in_frame_mobjects(tex_vn)
-        tex_vn.to_corner(UL).shift(DOWN*.5)
-        self.play(Write(tex_vn))
-
-        arrow_vn = animate_rotate_v("v " + nhat, -PI/2)
-        self.wait()
-
-        tex_q = get_tex(r"q = cos(\theta) + \hat{n} sin(\theta)").to_corner(UR)
-        tex_q.set_stroke(BLACK, 5, 1, True)
-        self.add_fixed_in_frame_mobjects(tex_q)
-        self.play(Write(tex_q))
-        self.wait()
-
-        def rotated_arrow(label_text, angle):
-            arrow = arrow_v.copy().rotate(angle, vi, ORIGIN)
-            label = position_arrow_label(arrow, get_tex(label_text), 0.4).set_stroke(BLACK, 5, 1, True)
-            angle = angle3D(arrow, arrow_v, color=MYPINK)
-            return VGroup(arrow, label, angle)
-
-        angle_tracker = ValueTracker(30*DEGREES)
-        arrow_qv = always_redraw(lambda: rotated_arrow("q v", angle_tracker.get_value()))
-        self.add_fixed_orientation_mobjects(arrow_qv[1])
-        self.play(Write(arrow_qv))
-        self.wait()
-
-        arrow_vq = always_redraw(lambda: rotated_arrow("v q", -angle_tracker.get_value()))
-        self.add_fixed_orientation_mobjects(arrow_vq[1])
-        self.play(Write(arrow_vq))
-        self.wait()
-
-        self.play(angle_tracker.animate.set_value(45*DEGREES))
-        self.wait()
-
-        self.move_camera(phi=65*DEGREES, theta=45*DEGREES)
-
-        self.play(FadeIn(arrow_n, tex_n))
-
-        # Explain the problem with trying to rotate vectors outside the tb plane this way.
-
-        self.play(FadeOut(tex_nv, tex_vn, tex_q, arrow_nv, arrow_vn, arrow_qv, arrow_vq, arrow_v, tex_v))
-
-        tex_perp = get_tex(r"\hat{n}(a \hat{n})", " = -a \hat{n} \cdot \hat{n} = -a")
-        tex_perp.set_stroke(BLACK, 5, 1, True)
-        self.add_fixed_in_frame_mobjects(tex_perp)
-        # tex_perp.to_edge(LEFT)
-        tex_perp.to_corner(UL)
-        tex_perp[4:].set_opacity(0)
-
-        arrow_an = Arrow(ORIGIN, vi * 3, buff=0).set_z_index(-1)
-        an_label = get_arrow_label(arrow_an, get_tex("a \hat{n}").set_stroke(BLACK, 5, 1, True) )
-        self.add_fixed_orientation_mobjects(an_label)
-        self.play(GrowArrow(arrow_an), Write(an_label))
-        self.wait()
-
-        self.play(Write(tex_perp[:4]))
-        self.wait()
-
-        self.play(Write(tex_perp[4:].set_opacity(1)))
-
 class ThreeD(ThreeDScene):
     def construct(self):
+        def prep_exposition(exposition: Mobject):
+            style_exposition(exposition)
+            self.add_fixed_in_frame_mobjects(exposition)
+            return exposition
+
+        # template = TexTemplate()
+        # template.add_to_preamble(r"\usepackage{times}")
+        # texkw = {"tex_template":template}
+
+        scene_color_map = color_map | {}
+        texkw = {"t2c":scene_color_map}
+        
         if config.renderer == "opengl":
             self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
         else:
             self.set_camera_orientation(phi=65*DEGREES, theta=20*DEGREES)
 
+        chapter = Tex("Chapter 4: Quaternion Rotation")
+        self.add_fixed_in_frame_mobjects(chapter)
+        self.play(FadeIn(chapter))
+        self.wait()
+        self.play(FadeOut(chapter))
+
         axes = standard_axes()
         numplane = jkplane().set_opacity(0)
         self.add(numplane)
-        self.add(axes)
+        self.play(Create(axes))
 
         arrow_i, arrow_j, arrow_k, tex_i, tex_j, tex_k = coordinate_frame()
         self.add_fixed_orientation_mobjects( tex_i, tex_j, tex_k )
 
         self.play( 
             FadeIn( arrow_i, arrow_j, arrow_k),
-            Create(tex_i), Create(tex_j), Create(tex_k) )
+            Write(tex_i), Write(tex_j), Write(tex_k) )
+        
+        exposition1 = VGroup(
+            line1 := colored_tex("To start off our search for a rotation formula,", **texkw),
+            line2 := colored_tex("let's look at the action of $i$ on numbers in", **texkw),
+            line3 := colored_tex("the $j$$k$-plane.", **texkw),
+        ).arrange(DOWN)
+        prep_exposition(exposition1).to_edge(UP)
+        self.play(Write(exposition1), run_time=4)
 
         def indicate_arrow(arrow, tex):
             return AnimationGroup( Indicate(arrow, scale_factor=1), Indicate(tex) )
 
-        self.wait()
+        # self.play( indicate_arrow(arrow_i, tex_i) )
+        # self.wait()
         self.play( 
             indicate_arrow(arrow_j, tex_j),
             indicate_arrow(arrow_k, tex_k),
             numplane.animate.set_opacity(0.25)
         )
-        self.play( indicate_arrow(arrow_i, tex_i) )
         self.wait()
+
+        self.play(FadeOut(exposition1))
+        exposition2 = colored_tex(
+            r"Remember, quaternion multiplication isn't commutative,\\"
+            "so the side we multiply on matters."
+        )
+        prep_exposition(exposition2).to_edge(UP)
+        self.play(Write(exposition2), run_time=2)
 
         table = pure_quat_times_table(color_map).scale(0.5).to_edge(LEFT)
         table_background = SurroundingRectangle( table, color=BLACK, fill_color=BLACK, fill_opacity=1, buff=0 )
         self.add_fixed_in_frame_mobjects(table_background)
         self.add_fixed_in_frame_mobjects(table)
-        self.play( FadeIn(table_background), Write(table) )
+        self.play( FadeIn(table_background), FadeIn(table) )
 
         def show_sided_i_multiplication(side="left"):
-            angle = PI/2 if side == "left" else -PI/2
+            sign = 1 if side == "left" else -1
+            angle = PI/2 * sign
+
             def swap( coord ):
                 if side == "left":
                     return coord
@@ -951,13 +758,72 @@ class ThreeD(ThreeDScene):
                     radius=-.5, tip_length=.12, color=RED)
                 for index in [ 3, 4 ] ] )
             arrows_jk = [ arrow_j, arrow_k ]
-            for i in range(2):
+
+            radius = 1.05
+            curve_ref = CurvedArrow(
+                polar2xy( (90 - 10) * DEGREES, radius ),
+                polar2xy( 10 * DEGREES,        radius ),
+                radius=-radius,
+                tip_length=0.2,
+                stroke_width=6,
+                color=RED
+            )
+            curves = VGroup(
+                curve_ref.copy().rotate(-PI/2, vj, ORIGIN),
+                curve_ref.copy().rotate(-PI/2, vj, ORIGIN).rotate( PI/2, vi, ORIGIN),
+                curve_ref.copy().rotate(-PI/2, vj, ORIGIN).rotate( PI, vi, ORIGIN),
+                curve_ref.copy().rotate(-PI/2, vj, ORIGIN).rotate( PI * 3/2, vi, ORIGIN),
+            )
+            if side == "right":
+                curves.rotate(PI, vj, ORIGIN)
+            
+            def rotate_basis(i):
                 arc = arcs[i]
                 arrow = arrows_jk[i].copy()
+                self.wait()
                 self.add_fixed_in_frame_mobjects(arc)
                 self.play( Create(arc) )
-                self.play( Rotate( arrow, angle, vi, ORIGIN ), indicate_arrow(arrow_i, tex_i) )
+                self.wait()
+                self.play( 
+                    Rotate( arrow, angle, vi, ORIGIN ),
+                    Create( curves[i*sign] )
+                    # indicate_arrow(arrow_i, tex_i) 
+                )
                 self.play( FadeOut( arrow, run_time=.25 ) )
+            
+            if side == "left":
+                self.play(FadeOut(exposition2))
+                exposition3 = prep_exposition( VGroup(
+                    line1 := colored_tex("Left multiplying by $i$ sends $j$ to $k$,", **texkw),
+                    line2 := colored_tex("$k$ to $-$$j$,", **texkw),
+                    line3 := colored_tex("and so on...", **texkw),
+                ).arrange(DOWN) ).to_edge(UP).set_opacity(0)
+                self.play(Write(line1.set_opacity(1)))
+
+            rotate_basis(0)
+
+            if side == "left":
+                self.play(Write(line2.set_opacity(1)))
+
+            rotate_basis(1)
+
+            if side == "left":
+                self.play(Write(line3.set_opacity(1)))
+
+            for i in range(2, 4):
+                self.play(Create(curves[i*sign]))
+
+            if side == "left":
+                self.play(FadeOut(exposition3))
+                exposition4 = prep_exposition( 
+                    colored_tex(
+                        r"Just like with complex numbers, this implies\\",
+                        r"multiplying by $i$ rotates any vector in this\\",
+                        r"plane 90 degrees left.",
+                        **texkw
+                    )
+                ).to_edge(UP)
+                self.play(Write(exposition4))
             
             # Rotate all together
             arrows_jk_2 = [arrow_j.copy(), arrow_k.copy() ]
@@ -965,28 +831,49 @@ class ThreeD(ThreeDScene):
             self.play( 
                 *[ Rotate( arrow, angle, vi, ORIGIN ) for arrow in arrows_jk_2 ],
                 Rotate(numplane, angle, vi),
-                indicate_arrow(arrow_i, tex_i), run_time=2 )
+                # indicate_arrow(arrow_i, tex_i), 
+                run_time=2
+            )
             self.play( FadeOut(*arrows_jk_2) )
 
-            self.play( FadeOut( *arcs, i_rect ) )
+            if side == "left":
+                self.play(FadeOut(exposition4))
+
+            self.play( FadeOut( *arcs, i_rect, curves ) )
         
-        tex_mult_side = VGroup(Tex("Left multiplication:"), math_tex("iv")).arrange().to_corner(UL)
+        tex_mult_side = VGroup(Tex("Left multiplication:"), math_tex("iv")).arrange()
+        prep_exposition(tex_mult_side).next_to(table, UP)
         tex_mult_side[1].shift(UP * 0.05) # Align to baseline. Might be worth creating a generic utility function for this.
-        self.add_fixed_in_frame_mobjects(tex_mult_side)
         self.play(Write(tex_mult_side))
         show_sided_i_multiplication("left")
         self.play(FadeOut(tex_mult_side))
-        tex_mult_side = VGroup(Tex("Right multiplication:"), math_tex("vi")).arrange().to_corner(UL)
+
+        exposition5 = prep_exposition(
+            colored_tex(
+                r"Right multiplication by $i$ is similar,\\",
+                r"but the direction of rotation is reversed.",
+                **texkw
+            )
+        ).to_edge(UP)
+        self.play(Write(exposition5))
+
+        tex_mult_side = VGroup(Tex("Right multiplication:"), math_tex("vi")).arrange()
+        prep_exposition(tex_mult_side).next_to(table, UP)
         tex_mult_side[1].shift(UP * 0.05) # Align to baseline
-        self.add_fixed_in_frame_mobjects(tex_mult_side)
         self.play(Write(tex_mult_side))
         show_sided_i_multiplication("right")
         self.play(FadeOut(tex_mult_side))
 
+        self.play(FadeOut(exposition5))
         self.wait()
 
 class ThreeDPart2(ThreeDScene):
     def construct(self):
+        def prep_exposition(exposition: Mobject):
+            style_exposition(exposition)
+            self.add_fixed_in_frame_mobjects(exposition)
+            return exposition
+
         self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
 
         numplane = jkplane().set_opacity(.25)
@@ -1004,6 +891,16 @@ class ThreeDPart2(ThreeDScene):
         self.add_fixed_in_frame_mobjects(table) 
 
         self.play(FadeOut(table_background, table))
+
+        exposition1 = prep_exposition( VGroup(
+            Tex(
+                r"The argument we used to go from 90 degree rotations to\\",
+                r"arbitrary rotations for complex numbers works here too."
+            )
+        ) )
+        self.play(Write(exposition1))
+
+        return
 
         tex_rotor = MathTex(*"q =cos(\\theta)+ i sin(\\theta)".split(" "))
         tex_rotor[0].set_color(MYPINK)
@@ -1379,93 +1276,6 @@ class RotationFormula(Scene):
             run_time=1.5
         )
 
-# Don't use
-class Generalizing(Scene):
-    def construct(self):
-        _color_map = color_map | {"ii":RED, "{i}":RED, "-1": WHITE, "=": WHITE}
-        tex_kw = { "t2c": _color_map }
-
-        def get_permute(r):
-            epsilon = 0.05/r
-            circle = Circle(r)
-            pfp = lambda p: circle.point_from_proportion(p)
-            get_arrow = lambda p: CurvedArrow(pfp(p+epsilon), pfp(p+1/3-epsilon), radius=r+r/15, tip_length=r/5)
-            return VGroup(
-                math_tex("i").move_to(pfp(0/3)),
-                get_arrow(0/3),
-                math_tex("j").move_to(pfp(1/3)),
-                get_arrow(1/3),
-                math_tex("k").move_to(pfp(2/3)),
-                get_arrow(2/3),
-            )
-
-        equations = VGroup(
-            tex_full_ident := math_tex("i^2 = j^2 = k^2 = ijk = -1"),
-            tex_ident := colored_math_tex("i j k = -1", **tex_kw),
-        ).arrange(DOWN, 1)
-
-        self.play(Write(tex_full_ident))
-
-        permute = get_permute(.5)
-        permute.to_edge(UP)
-        self.play(Write(permute))
-
-        self.play(Write(tex_ident))
-
-        def transform(new_tex, match=True, **kwargs):
-            new_tex.move_to(tex_ident)
-            if match:
-                self.play(TransformMatchingTex(tex_ident, new_tex, **kwargs))
-            else:
-                self.play(ReplacementTransform(tex_ident, new_tex, **kwargs))
-            return new_tex
-        
-        def replace(new_tex):
-            new_tex.move_to(tex_ident)
-            self.remove(tex_ident)
-            return new_tex
-
-        tex_ident = transform(colored_math_tex("{i}(i j k){i} = {i}(-1){i}", **tex_kw), shift=DOWN)
-        self.wait()
-        tex_ident = replace(colored_math_tex("i(i j k)i = i(-1)i", **tex_kw))
-        tex_ident = transform(colored_math_tex("(i i)j k i = (i i)(-1)", **tex_kw), path_arc=90*DEGREES)
-        self.wait()
-        tex_ident = replace(colored_math_tex("(ii)j k i = (ii)(-1)", **tex_kw))
-        tex_ident = transform(colored_math_tex("j k i = -1", **tex_kw), shift=DOWN)
-        self.wait()
-
-        tex_ident_squares = colored_math_tex("j^2 = k^2 = i^2 = ", **tex_kw)
-        VGroup(tex_ident_squares, tex_ident_copy := tex_ident.copy()).arrange(aligned_edge=DOWN, buff=0.16).move_to(tex_ident)
-        self.play(Write(tex_ident_squares), tex_ident.animate.move_to(tex_ident_copy))
-        tex_ident_full_j = VGroup(tex_ident_squares, tex_ident)
-
-        self.play( VGroup( tex_full_ident, tex_ident_full_j ).animate.to_edge(LEFT, buff=1) )
-
-        def add_blurb(identity, axis_string="i", color=RED, theta_color=MYPINK):
-
-            _color_map = color_map | { r"\overline{q}": theta_color, "q": theta_color, r"\theta": theta_color }
-
-            blurb = VGroup(
-                VGroup(
-                    Tex("If"),
-                    colored_math_tex(r"q = cos(\tfrac{1}{2}\theta) + " + axis_string + r" sin(\tfrac{1}{2}\theta)", t2c=_color_map),
-                ).arrange(),
-                VGroup(
-                    colored_math_tex(r"q v \overline{q}", t2c=_color_map),
-                    Tex(r"rotates $v$ about ", f"${axis_string}$", " by ").set_color_by_tex(axis_string, color),
-                    colored_math_tex(r"\theta", t2c=_color_map)
-                ).arrange(),
-            ).arrange(DOWN)
-            blurb.scale(2/3)
-            blurb = VGroup( SurroundingRectangle(blurb).set_z_index(-1), blurb )
-            blurb = VGroup( MathTex(r"\Rightarrow"), blurb ).arrange(buff=1)
-            blurb.next_to(identity, buff=1)
-
-            self.play(Write(blurb))
-        
-        add_blurb(tex_full_ident)
-        add_blurb(tex_ident_full_j, "j", GREEN, GREEN_B)
-
 class PrimeCoordinates(ThreeDScene):
     def construct(self):
         if config.renderer == "opengl":
@@ -1631,4 +1441,3 @@ class Isomorphism(Scene):
         # self.add(index_labels(tc.tex))
         # self.wait()
         # return
-        
