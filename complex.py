@@ -1151,7 +1151,7 @@ class ComplexMultiplication(MovingCameraScene):
         local_color_map = {
             r"$\theta$": WHITE, "$u$": YELLOW, 
             r"\theta": WHITE, "u": YELLOW, 
-            "v'": YELLOW,
+            "$v'$": YELLOW, "v'": YELLOW,
             "$iv$": BLUE_E, "$v$": BLUE,
             "iv": BLUE_E, "v": BLUE,
             "cos": RED, "sin": GREEN,
@@ -1238,9 +1238,6 @@ class ComplexMultiplication(MovingCameraScene):
             return angle
         angle_uv = always_redraw(get_angle)
 
-        # self.play(arrow_uv.grow_animation())
-        # self.play(Create(angle_uv))
-
         theta_reading = always_redraw( 
             lambda: VGroup(
                 get_tex(r"\theta ="), DecimalNumber(angle_u.get_value()/DEGREES, 1, unit="^\circ")
@@ -1251,83 +1248,57 @@ class ComplexMultiplication(MovingCameraScene):
                 get_tex(r"\r = "), DecimalNumber(length_u.get_value(), 2)
             ).arrange(RIGHT).next_to(theta_reading, DOWN, aligned_edge=LEFT)
         )
+        
         self.play(FadeIn(theta_reading))
-
         self.add(arrow_uv, angle_uv)
-        self.play(FadeOut(angle_right), alpha_uv.animate.set_value(1), angle_u.animate.set_value(45*DEGREES))
+        self.play(FadeOut(angle_right), alpha_uv.animate.set_value(1), angle_u.animate.set_value(45*DEGREES), run_time=2)
+        self.wait()
 
         self.play(Write(line2))
         r_reading.update()
         self.play(FadeIn(r_reading))
         self.wait()
-        self.play(length_u.animate.set_value(0.6))
+        self.play(length_u.animate.set_value(1.2))
         self.wait()
 
         self.play(FadeOut(exposition2))
         exposition3 = style_exposition( VGroup (
-            line1 := colored_tex( r"We can project this transformed point on to $v$ and $iv$,", **texkw ),
-            line2 := colored_tex( r"giving us an expression for $v$ after rotation and scaling.", **texkw )
+            line1 := colored_tex( r"We can project $v'$ on to $v$ and $iv$,", **texkw ),
+            line2 := colored_tex( r"giving us an expression for $v'$.", **texkw )
         ).arrange(DOWN) ).to_edge(UP).shift(UP * 2)
         self.play(Write(line1))
         self.wait()
 
         cos_proj_length = lambda: length_v * np.cos(angle_u.get_value()) * length_u.get_value()
         arrow_cos_v = get_arrow_rotated(
-            get_tex(r"r cos(\theta) v")
-                .scale(2/3)
-                .rotate(angle_v.get_value()),
+            get_tex(r"r cos(\theta) v").scale(2/3).rotate(angle_v.get_value()),
             lambda: angle_v.get_value(),
             get_length=cos_proj_length,
-            color=RED,
-            perp_distance = -0.35, alpha=0.3
+            color=RED, perp_distance = -0.35, alpha=0.3
         )
 
         sin_proj_length = lambda: length_v * np.sin(angle_u.get_value()) * length_u.get_value()
         arrow_sin_iv = get_arrow_rotated(
-            get_tex(r"r sin(\theta) iv")
-                .scale(2/3)
-                .rotate(angle_v.get_value() - PI/2),
+            get_tex(r"r sin(\theta) iv").scale(2/3).rotate(angle_v.get_value() - PI/2),
             lambda: angle_v.get_value() + PI/2,
             get_length=sin_proj_length,
-            color=GREEN,
-            perp_distance = 0.35, alpha=0.3
+            color=GREEN, perp_distance = 0.35, alpha=0.3
         )
 
-        line_cos = always_redraw(
-            lambda: DashedLine(
-                # arrow_cos_v.arrow.get_end(),
-                # Using the above introduces a 1 frame lag.
+        line_cos = always_redraw( lambda: DashedLine(
                 polar2xy( angle_v.get_value(), cos_proj_length() ),
-                arrow_uv.arrow.get_end(),
-                color=RED
-            )
-        )
+                arrow_uv.arrow.get_end(), color=RED
+        ) )
 
-        line_sin = always_redraw(
-            lambda: DashedLine(
-                # arrow_sin_iv.arrow.get_end(),
+        line_sin = always_redraw( lambda: DashedLine(
                 polar2xy( angle_v.get_value() + PI/2, sin_proj_length() ),
-                arrow_uv.arrow.get_end(),
-                color=GREEN
-            )
-        )
+                arrow_uv.arrow.get_end(), color=GREEN
+        ) )
 
         self.play(FadeIn(line_cos, line_sin))
-        line_cos.suspend_updating()
-        line_sin.suspend_updating()
         self.play(arrow_cos_v.grow_animation())
         self.play(arrow_sin_iv.grow_animation())
-        line_cos.resume_updating()
-        line_sin.resume_updating()
         self.wait()
-
-        self.play(length_u.animate.set_value(0.8))
-        self.wait()
-        self.play(angle_u.animate.increment_value(20*DEGREES))
-        self.play(angle_u.animate.increment_value(-40*DEGREES), run_time=1.5)
-        self.play(angle_u.animate.increment_value(20*DEGREES))
-        self.wait()
-        self.play(length_u.animate.set_value(1.1))
 
         self.play(FadeOut(theta_reading, r_reading))
 
@@ -1346,94 +1317,59 @@ class ComplexMultiplication(MovingCameraScene):
             get_tex(r"r cos(\theta) v + r sin(\theta) iv" ),
             extra_sources=Group(arrow_cos_v.label.copy(), arrow_sin_iv.label.copy())
         ) )
-        self.wait()
+        self.wait(2)
         self.play( arrow_uv.animate_relabel( get_tex(r"r (cos\,\theta + i sin\,\theta) \, v" ), path_arc=90*DEGREES ) )
 
         self.play(FadeOut(exposition3))
         exposition4 = style_exposition( 
             VGroup(
                 line1 := VGroup(
-                    colored_tex( r"After factoring, the transformed point just becomes $v$ times", **texkw ),
+                    colored_tex( r"After factoring, $v'$ just becomes $v$ times", **texkw ),
                     get_tex(r"r (cos \theta + i sin \theta) \text{.}")
                 ).arrange(RIGHT),
-                line2 := VGroup(colored_tex(r"So multiplying by"), get_tex(r"r (cos \theta + i sin \theta)")).arrange(RIGHT),
-                line3 := colored_tex( "has the effect of rotating by $\theta$, its argument,", **texkw ),
-                line4 := colored_tex( "and scaling by $r$, its modulus,", **texkw )
+                VGroup(
+                    line2 := VGroup(colored_tex(r"So multiplying by"), get_tex(r"r (cos \theta + i sin \theta)")).arrange(RIGHT),
+                    line3 := colored_tex(r"rotates numbers by $\theta$, its argument,", **texkw ),
+                ).arrange(RIGHT),
+                line4 := colored_tex(r"and scales them by $r$, its modulus.", **texkw )
             ).arrange(DOWN)
          ).to_edge(UP).shift(UP * 2)
         self.play(Write(line1))
 
         tex_u = arrow_uv.label[0:11]
         self.play(Indicate(tex_u, 1.1))
+        self.play(FadeOut(arrow_uv, arrow_v, arrow_iv, arrow_cos_v, arrow_sin_iv, angle_uv, line_cos))
 
-        # self.play(FadeOut(arrow_uv, arrow_v, arrow_iv, arrow_cos_v, arrow_sin_iv, angle_uv, line_cos))
+        length_u.set_value(np.sqrt(8))
 
         self.wait()
         self.play(Write(line2))
-
-        # dims = np.array([762, 327]) / 327 * 3
-        # rect = RoundedRectangle(0.125, width=dims[0], height=dims[1])
-        # rect.set_fill(BLACK, 1).shift(UP * 1.5).set_z_index(100)
-        # self.play(FadeIn(rect))
-        # self.wait()
-        # self.play(FadeOut(rect))
-
-        # dot = Dot(z_index=10)
-        # line = Line(ORIGIN, RIGHT)
 
         arrow_u = get_arrow_rotated(
             get_tex(r"r (cos \, \theta + i sin \, \theta)"),
             lambda: angle_u.get_value(),
             get_length=lambda: length_u.get_value(),
             color=YELLOW,
+            aligned_edge=LEFT
         )
         self.play(FadeIn(arrow_u))
-        # angle_u = Angle(
-        #     Line(ORIGIN, RIGHT),
-        #     arrow_u.arrow,
-        #     color=YELLOW
-        # )
-        # angle_u.add( MathTex(r"\theta").move_to(angle_u.point_from_proportion(0.5) * 2) )
-        # brace = Brace( arrow_u.arrow, direction=rotate_cc(arrow_u.arrow.get_unit_vector()) )
-        # brace_tex = MathTex("r")
-        # brace.put_at_tip(brace_tex, False)
-
-        # self.add(arrow_u, brace, brace_tex, angle_u)
-
-        # return
-
-        self.play(FadeOut(exposition4))
-        exposition5 = style_exposition( colored_tex(
-            r"So multiplying by a complex number rotates numbers by its argument and scales them by its modulus.",
-            t2c={"argument":YELLOW, "modulus":YELLOW}
-        ) ).to_edge(UP).shift(UP * 2)
-        self.play(Write(exposition5))
-
-class ComplexMultiplication_PolarForm(Scene):
-    def construct(self):
-        scene_color_map = { "cos": RED, "sin": GREEN }
-        texkw = { "t2c": scene_color_map }
-
-        dot = Dot(z_index=10)
-        line = Line(ORIGIN, RIGHT)
-
-        vu = polar2xy(45*DEGREES, 2.5)
-        arrow_u = LabeledArrow(
-            Arrow(ORIGIN, vu, buff=0, color=YELLOW),
-            colored_math_tex(r"r (cos \, \theta + i sin \, \theta)", **texkw),
-            distance=0.25, perp_distance=0.1,  aligned_edge=LEFT
-        )
-        angle_u = Angle(
+        angle_u_mobj = Angle(
             Line(ORIGIN, RIGHT),
             arrow_u.arrow,
             color=YELLOW
         )
-        angle_u.add( MathTex(r"\theta").move_to(angle_u.point_from_proportion(0.5) * 2) )
+        angle_u_mobj.add( MathTex(r"\theta").move_to(angle_u_mobj.point_from_proportion(0.5) * 2) )
         brace = Brace( arrow_u.arrow, direction=rotate_cc(arrow_u.arrow.get_unit_vector()) )
         brace_tex = MathTex("r")
         brace.put_at_tip(brace_tex, False)
 
-        self.add(dot, line, arrow_u, brace, brace_tex, angle_u)
+        self.play(Write(line3))
+        self.play(FadeIn(angle_u_mobj))
+        self.wait()
+
+        self.play(Write(line4))
+        self.play(FadeIn(brace, brace_tex))
+        self.wait()
 
 class UnitComplexNumbers(Scene):
     def construct(self):
