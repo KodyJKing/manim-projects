@@ -1,9 +1,10 @@
 from typing import List
 from webbrowser import get
+from click import style
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
-from sympy import rad
+from sympy import ZZ_I, rad
 from complex import AlgebraicProps
 from lib.TexContainer import TexContainer
 from lib.angle3D import angle3D
@@ -29,14 +30,16 @@ khatn = "-" + khat
 MYPINK = "#ff6181"
 
 color_map = { 
-    "\\overline{q}": MYPINK,
+    "$\\overline{q}$": MYPINK, "\\overline{q}": MYPINK,
     ihat: RED, jhat: GREEN, khat: BLUE,
     "{i'}": RED, "{j'}": GREEN, "{k'}": BLUE,
     "i'": RED, "j'": GREEN, "k'": BLUE,
+    "$i'$": RED, "$j'$": GREEN, "$k'$": BLUE,
     "$i$": RED, "$j$": GREEN, "$k$": BLUE,
     "i": RED, "j": GREEN, "k": BLUE,
     "b": WHITE,
-    "q": MYPINK, r"\theta": MYPINK,
+    "$q$": MYPINK, "q": MYPINK,
+    r"$\theta$": MYPINK, r"\theta": MYPINK,
     "\\times": WHITE,
 }
 
@@ -874,6 +877,9 @@ class ThreeDPart2(ThreeDScene):
             self.add_fixed_in_frame_mobjects(exposition)
             return exposition
 
+        scene_color_map = {} | color_map
+        texkw = {"t2c":scene_color_map}
+
         self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
 
         numplane = jkplane().set_opacity(.25)
@@ -893,18 +899,37 @@ class ThreeDPart2(ThreeDScene):
         self.play(FadeOut(table_background, table))
 
         exposition1 = prep_exposition( VGroup(
-            Tex(
-                r"The argument we used to go from 90 degree rotations to\\",
-                r"arbitrary rotations for complex numbers works here too."
-            )
+            line1 := colored_tex(
+                r"We can use the same argument we used for complex numbers\\",
+                r"to go from 90 degree rotations to arbitrary rotations."
+            ),
+            line2 :=  VGroup(
+                colored_tex(r"Multiplying by"),
+                colored_math_tex(r"cos \, \theta + i sin \, \theta", **texkw),
+                colored_tex(r"rotates by $\theta$ in the jk-plane.", **texkw)
+            ).arrange(),
+            line3 := colored_tex(r"Only now the direction of rotation depends on the\\side we multiply on...")
+        ).arrange(DOWN) ).to_edge(UP).set_opacity(0)
+        # self.play(Write(exposition1))
+
+        dimensions = np.array([1920, 1080]) / 1080 * 5
+        width, height = dimensions
+        preview_rect = RoundedRectangle(0.125, width=width, height=height).set_fill(BLACK, 1)
+        self.add_fixed_in_frame_mobjects(preview_rect)
+        self.play( LaggedStart(
+            Write(line1.set_opacity(1)),
+            FadeIn(preview_rect),
+            lag_ratio=0.8
         ) )
-        self.play(Write(exposition1))
+        self.wait()
+        self.play(FadeOut(preview_rect))
+        self.play(Write(line2.set_opacity(1)))
+        self.wait()
+        self.play(Write(line3.set_opacity(1)))
+        self.wait()
+        self.play(FadeOut(exposition1))
 
-        return
-
-        tex_rotor = MathTex(*"q =cos(\\theta)+ i sin(\\theta)".split(" "))
-        tex_rotor[0].set_color(MYPINK)
-        tex_rotor[2].set_color(RED)
+        tex_rotor = colored_math_tex(r"q = cos \, \theta + i sin \, \theta", **texkw)
         tex_rotor.to_corner(UR)
         self.add_fixed_in_frame_mobjects(tex_rotor)
         self.play(Write(tex_rotor))
@@ -920,11 +945,12 @@ class ThreeDPart2(ThreeDScene):
                 angle = Angle(
                     Line(ORIGIN, UP),
                     Line(ORIGIN, UP).rotate(theta, about_point=ORIGIN),
-                    other_angle=sign<0
+                    other_angle=sign<0,
+                    color=MYPINK
                 ).rotate(PI/2, vj, ORIGIN)
                 midpoint = angle.get_midpoint()
                 opacity = smoothstep(0, 20*DEGREES, abs(theta))
-                label = MathTex(theta_label).next_to(midpoint + OUT * 0.1 * sign, normalize(midpoint), buff=0.1)
+                label = MathTex(theta_label, color=MYPINK).next_to(midpoint + OUT * 0.1 * sign, normalize(midpoint), buff=0.1)
                 label.set_opacity(opacity).scale(0.75)
                 label.fix_orientation()
                 return VGroup(angle, label)
@@ -947,19 +973,18 @@ class ThreeDPart2(ThreeDScene):
             self.play( numplane.animate.set_opacity(0.25),  run_time=0.5 )
 
         # Show sided multiplication by q
-        tex_left_label = Tex("Counter-clockwise: ")
-        tex_left_multiply = math_tex("qv").next_to(tex_left_label, RIGHT).shift(DOWN * 0.1)
-        left_group = VGroup(tex_left_label, tex_left_multiply)
-        left_group.to_corner(UL)
+        tex_left_label = colored_tex(r"Left multiplication rotates left by $\theta$: ", **texkw)
+        tex_left_multiply = math_tex("qv").next_to(tex_left_label, RIGHT).shift(DOWN * 0.06)
+        left_group = prep_exposition( VGroup( tex_left_label, tex_left_multiply ) ).to_corner(UL)
         self.add_fixed_in_frame_mobjects(left_group)
         self.play(Write(left_group))
         
         animate_rotation("\\theta", 60*DEGREES)
         self.wait()
 
-        tex_right_label = Tex("Clockwise: ")
-        tex_right_multiply = math_tex("vq").next_to(tex_right_label, RIGHT).shift(DOWN * 0.1)
-        right_group = VGroup(tex_right_label, tex_right_multiply)
+        tex_right_label = colored_tex(r"Right multiplication rotates right by $\theta$: ", **texkw)
+        tex_right_multiply = math_tex("vq").next_to(tex_right_label, RIGHT).shift(DOWN * 0.06)
+        right_group = prep_exposition( VGroup(tex_right_label, tex_right_multiply) )
         right_group.next_to(left_group, DOWN, aligned_edge=LEFT)
         self.add_fixed_in_frame_mobjects(right_group)
         self.play(Write(right_group))
@@ -970,9 +995,13 @@ class ThreeDPart2(ThreeDScene):
         self.play(FadeOut(left_group, right_group, tex_rotor))
 
         # Show issue with rotation outside of jk-plane
+        exposition2 = prep_exposition( colored_tex(
+            r"Unfortunately, if we try rotating vectors outside the jk-plane,\\a problem arises..."
+        ) ).to_edge(UP)
+        self.play(Write(exposition2))
+        self.play(Indicate(numplane, 1.1))
         arrow_v = Arrow3D(ORIGIN, vj + vk)
         self.play(FadeIn(arrow_v))
-        self.play(Indicate(numplane, 1.1))
 
         self.move_camera(phi=75*DEGREES, theta=145*DEGREES)
 
@@ -983,6 +1012,13 @@ class ThreeDPart2(ThreeDScene):
             arrow_v.animate.become(Arrow3D(ORIGIN, vj + vk + vi))
         )
         self.wait()
+
+        self.play(FadeOut(exposition2))
+        exposition3 = prep_exposition( colored_tex(
+            r"We would expect a rotation about $i$ to leave the\\$i$ component of our vector unchanged...",
+            **texkw
+        ) ).to_edge(UP)
+        self.play(Write(exposition3))
 
         self.play(
             LaggedStart(
@@ -995,8 +1031,19 @@ class ThreeDPart2(ThreeDScene):
             run_time=2
         )
         self.wait()
+
+        self.play(FadeOut(exposition3))
+        exposition4 = prep_exposition( VGroup(
+            VGroup(
+                line1 := colored_tex("But if we multiply a vector by $i$ for example,", **texkw),
+                line2 := colored_tex("the $i$ component becomes real.", **texkw),
+            ).arrange(),
+            line3 := colored_tex("This isn't even a vector quaternion anymore because the real part is non-zero.")
+        ).arrange(DOWN) ).to_edge(UP).set_opacity(0)
         
         # Write out i(xi + yj + zk) and simplify.
+        self.play(Write(line1.set_opacity(1)))
+        self.wait()
         self.play(FadeIn(table_background, table))
         steps = [
             (math_tex(*"i ( x i + y j + z k )".split(" ")), False),
@@ -1004,24 +1051,73 @@ class ThreeDPart2(ThreeDScene):
             (math_tex(*" x ( - 1 ) + y k + z ( - j )".split(" ")), False),
             (math_tex(*"- x + y k - z j".split(" ")), True),
         ]
-        steps[0][0].to_corner(UL)
+        steps[0][0].next_to(table, UP, 0.5)
         for step in steps:
-            step[0].fix_in_frame()
+            step[0].set_stroke(BLACK, 5, 1, True).fix_in_frame()
         play_rewrite_sequence(self, *steps)
+        self.play(Write(line2.set_opacity(1)))
+        self.wait()
 
         # Highlight real part of product.
         rect = SurroundingRectangle(steps[-1][0][:2], color=RED)
         self.add_fixed_in_frame_mobjects(rect)
         self.play(Create(rect))
         self.wait()
+        
+        self.play(Write(line3.set_opacity(1)))
+        self.wait()
+
+        self.play(
+            FadeOut(table_background, table, exposition4, steps[-1][0], rect),
+            axes.animate.set_opacity(0.5),
+            numplane.animate.set_opacity(0.125),
+        )
+
+        exposition5 = prep_exposition( colored_tex( 
+                r"What's happening is the $i$ component is being\\",
+                r"rotated through the complex plane.",
+                **texkw
+        ) ).to_edge(UP)
+        self.play(Write(exposition5), run_time=2)
+        self.wait(2)
+        self.play(FadeOut(exposition5))
+
+        exposition6 = prep_exposition( colored_tex(
+            r"We can't visualize this here because we don't\\",
+            r"have enough dimensions to show the real axis."
+        ) ).to_edge(UP)
+        self.play(Write(exposition6), run_time=2)
+        self.wait(2)
+        self.play(FadeOut(exposition6))
+
+        exposition7 = prep_exposition( colored_tex(
+            r"Let's switch to a visualization which allows us to see what's\\",
+            r"going on in the complex plane and jk-plane simultaneously..."
+        ) ).to_edge(UP)
+        self.play(Write(exposition7), run_time=3)
+        self.wait(2)
 
 class DualPlanes(Scene):
     def construct(self):
+        # plane_scale = 2/3
+        plane_scale = 1
+        plane_label_scale = 2/3 / plane_scale
+        arrow_label_dist = 0.25 * 3/2 * plane_scale
+
+        scene_color_map = color_map | {
+            "complex-part": MYPINK, "$jk$-part": TEAL,
+            "complex-plane": MYPINK, "$jk$-plane": TEAL
+        }
+        texkw = {"t2c": scene_color_map}
+
+        def get_outlined_tex(*vargs, **kwargs):
+            return math_tex(*vargs, **kwargs).set_stroke(BLACK, 5, 1, True)
 
         def make_plane(x_color, y_color, x_label, y_label ):
             plane_group = VDict()
 
-            plane_range = [-3, +3]
+            # plane_range = [-3, +3]
+            plane_range = [-2, +2]
             axes = Axes(x_range=plane_range, y_range=plane_range,
                 x_length=None, y_length=None, tips=False)
             x_axis, y_axis = axes.get_axes()
@@ -1044,34 +1140,45 @@ class DualPlanes(Scene):
             )
             plane_group["circle"] = circle
 
+            dot = Dot(z_index=10)
+            plane_group["dot"] = dot
+
             return plane_group
 
         plane_1i = make_plane(WHITE, RED, "1", "i")
         plane_jk = make_plane(BLUE, GREEN, "j", "k")
-        plane_1i["title"] = Tex("$1i$-Plane \n (Complex Plane)").next_to(plane_1i, DOWN, aligned_edge=LEFT)
-        plane_jk["title"] = Tex("$jk$-Plane").next_to(plane_jk, DOWN, aligned_edge=RIGHT)
+        plane_1i["title"] = (Tex("$1i$-Plane \n (Complex Plane)")
+            .scale(plane_label_scale)
+            .next_to(plane_1i, DOWN, aligned_edge=LEFT))
+        plane_jk["title"] = (Tex("$jk$-Plane")
+            .scale(plane_label_scale)
+            .next_to(plane_jk, DOWN, aligned_edge=RIGHT))
 
-        plane_scale = 2/3
         plane_group = VGroup(plane_1i, plane_jk)
-        plane_group.scale(plane_scale).arrange(buff=1).shift(UP)
+        plane_group.scale(plane_scale).arrange(buff=1)#.shift(UP)
+
+        exposition1 = style_exposition(
+            Tex("If we draw both planes side by side,")
+        ).to_edge(UP)
+        self.play(Write(exposition1))
 
         for plane in plane_group:
-            self.play( Create(plane) )
+            # self.play( Create(plane) )
+            self.play( FadeIn(plane) )
 
         self.wait()
 
-        tex_v = math_tex(*"v = a + bi + cj + dk".split(" ")).next_to(plane_group, DOWN)
-        tex_q = colored_math_tex(r"q = cos(\theta) + i sin(\theta)", t2c=color_map).next_to(tex_v, DOWN)
-        self.play( Write( tex_v ) )
+        tex_v = math_tex(*"v = a + bi + cj + dk".split(" ")).to_edge(DOWN, 0.25)
+        tex_q = colored_math_tex(r"q = cos \, \theta + i sin \, \theta", t2c=color_map).to_edge(DOWN, 0.25)
+        tex_q_conj = colored_math_tex(r"\overline{q} = cos \, \theta - i sin \, \theta", t2c=color_map).next_to(tex_q, UP)
 
-        self.wait()
-        
         # Complex and jk components of v.
         c45 = np.cos(45 * DEGREES)
         arrow_ab, arrow_cd = [
             LabeledArrow(
                 Arrow( plane["axes"].c2p(0,0), plane["axes"].c2p(*coord), buff=0),
-                math_tex("v").scale(plane_scale),
+                get_outlined_tex("v").scale(plane_scale),
+                distance=arrow_label_dist
             ) for plane, coord in [ 
                 # (plane_1i, (3/5,-4/5)), (plane_jk, (3/5, 4/5))
                 # (plane_1i, (c45, c45)), (plane_jk, (c45, c45))
@@ -1086,16 +1193,46 @@ class DualPlanes(Scene):
             ).animate.set_opacity(0.25)
         )
 
-        self.play( LaggedStart( 
-            arrow_ab.grow_animation(),
-            Circumscribe( tex_matches(tex_v, "a", "i" ) ),
-            lag_ratio=.25 ), run_time=1.5 )
-        self.play( LaggedStart(  
-            arrow_cd.grow_animation(),
-            Circumscribe( tex_matches(tex_v, "c", "k" ) ),
-            lag_ratio=.25 ), run_time=1.5 )
+        # self.play(FadeOut(exposition1))
+        exposition2 = style_exposition( colored_tex(
+            r"we can see both the complex-part and ",
+            r"$jk$-part of a quaternion at the same time.",
+            **texkw
+        ) ).next_to(exposition1, DOWN)
+        self.play(Write(exposition2))
+        self.wait()
 
+        self.play( Write( tex_v ) )
+        self.wait()
+
+        self.play( Create( rect := SurroundingRectangle( tex_matches(tex_v, "a", "i" ) ) ) )
+        self.play( arrow_ab.grow_animation() )
+        self.wait()
+
+        self.play(FadeOut(rect))
+        
+        self.play( Create( rect := SurroundingRectangle( tex_matches(tex_v, "c", "k" ) ) ) )
+        self.play( arrow_cd.grow_animation() )
+        self.wait()
+
+        self.play(FadeOut(rect, tex_v, exposition1, exposition2))
+
+        exposition3 = style_exposition( colored_tex(
+            "If we multiply by $q$, the complex-part of $v$"\
+            " should obey the rules of complex multiplication...",
+            **texkw
+        ) ).to_edge(UP)
+        self.play(Write(exposition3))
         self.play( Write(tex_q) )
+        self.wait(4)
+
+        self.play(FadeOut(exposition3))
+        exposition4 = style_exposition( colored_tex(
+            r"No matter which side we multiply on, the complex-part gets rotated left by $\theta$.",
+            **texkw
+        ) ).to_edge(UP)
+        self.play(Write(exposition4))
+        self.wait(2)
 
         theta = PI/4
         origin_ab = arrow_ab.arrow.get_start()
@@ -1123,38 +1260,59 @@ class DualPlanes(Scene):
 
         # Multiply complex-componet on either side.
         self.play( Rotate(arrow_iab.arrow, theta, about_point=origin_ab),
-            replace_tex(arrow_iab.label, math_tex("qv").scale(plane_scale) ) )
+            replace_tex(arrow_iab.label, get_outlined_tex("qv").scale(plane_scale) ) )
         self.play( Rotate(arrow_abi.arrow, theta, about_point=origin_ab),
-            replace_tex(arrow_abi.label, math_tex("vq").scale(plane_scale) ),
+            replace_tex(arrow_abi.label, get_outlined_tex("vq").scale(plane_scale) ),
             FadeOut( arrow_iab ) )
-        self.play(replace_tex(arrow_abi.label, math_tex("qv, vq").scale(plane_scale) ))
+        self.play(replace_tex(arrow_abi.label, get_outlined_tex("qv, vq").scale(plane_scale) ))
         self.wait()
+
+        self.play(FadeOut(exposition4))
+        exposition5 = style_exposition( colored_tex(
+            r"Whereas the $jk$-part rotates left when multiplied on the left\\and rotates right when multiplied on the right.",
+            **texkw
+        ) ).to_edge(UP)
+        self.play(Write(exposition5))
+        self.wait(2)
 
         # Multiply jk-component on either side.
         self.play( Rotate(arrow_icd.arrow, theta, about_point=origin_cd),
-            replace_tex(arrow_icd.label, math_tex("qv").scale(plane_scale) ) )
+            replace_tex(arrow_icd.label, get_outlined_tex("qv").scale(plane_scale) ) )
         self.play( Rotate(arrow_cdi.arrow, -theta, about_point=origin_cd),
-            replace_tex(arrow_cdi.label, math_tex("vq").scale(plane_scale) ) )
+            replace_tex(arrow_cdi.label, get_outlined_tex("vq").scale(plane_scale) ) )
+        self.wait(2)
+
+        # # Vary theta.
+        # for d_theta in [PI/6, -PI/6]:
+        #     self.play(
+        #         *[
+        #             Rotate(arrow.arrow, d_theta, about_point=arrow.arrow.get_start())
+        #             for arrow in [arrow_abi, arrow_icd]
+        #         ],
+        #         Rotate(arrow_cdi.arrow, -d_theta, about_point=arrow_cdi.arrow.get_start())
+        #     )
+        #     self.wait(0.25)
+        # self.wait()
+
+        self.play( FadeOut( arrow_icd, arrow_abi, arrow_cdi, exposition5 ) )
         self.wait()
 
-        # Vary theta.
-        for d_theta in [PI/6, -PI/6]:
-            self.play(
-                *[
-                    Rotate(arrow.arrow, d_theta, about_point=arrow.arrow.get_start())
-                    for arrow in [arrow_abi, arrow_icd]
-                ],
-                Rotate(arrow_cdi.arrow, -d_theta, about_point=arrow_cdi.arrow.get_start())
-            )
-            self.wait(0.25)
-        self.wait()
+        exposition6 = style_exposition( colored_tex(
+            r"We would like to rotate in the $jk$-plane without rotating in the complex-plane.",
+            **texkw
+        ) ).to_edge(UP)
+        self.play(Write(exposition6))
+        self.wait(1)
 
-        self.play( FadeOut( arrow_icd, arrow_abi, arrow_cdi ) )
+        exposition7 = style_exposition( colored_tex(
+            r"If we multiply by $q$ on both sides...",
+            **texkw
+        ) ).next_to(exposition6, DOWN)
+        self.play(Write(exposition7))
+        self.wait(1)
 
-        self.wait()
-
-        tex_sandwich_1 = math_tex("qvq").to_edge(UP)
-        tex_sandwich_2 = math_tex("qv\\overline{q}").next_to(tex_sandwich_1, DOWN)
+        tex_sandwich_1 = get_outlined_tex("qvq").to_edge(UP, 2)
+        tex_sandwich_2 = get_outlined_tex("qv\\overline{q}").to_edge(UP, 2)
         self.play( Write( tex_sandwich_1 ) )
         self.wait()
 
@@ -1175,25 +1333,25 @@ class DualPlanes(Scene):
             mobj_angle1 = Angle(arrow, arrow_rot1, radius=radius, color=MYPINK)
             mobj_angle2 = Angle(arrow_rot1, arrow_rot2, radius=radius2, color=MYPINK, other_angle=reverse_step_2)
 
-            arrow_qv = LabeledArrow( arrow.copy(), math_tex("v").scale(plane_scale) )
+            arrow_qv = LabeledArrow( arrow.copy(), get_outlined_tex("v").scale(plane_scale), distance=arrow_label_dist )
             self.play(
                 Rotate(arrow_qv.arrow, angle, about_point=origin),
-                replace_tex(arrow_qv.label, math_tex("qv").scale(plane_scale) ),
+                replace_tex(arrow_qv.label, get_outlined_tex("qv").scale(plane_scale) ),
                 Create(mobj_angle1)
             )
 
-            get_tex = lambda string: colored_math_tex(string, t2c=color_map).scale(plane_scale)
-            tc_net_angle = TexContainer(net_angle_steps[0], get_tex)
+            get_angle_tex = lambda string: colored_math_tex(string, t2c=color_map).scale(plane_scale).set_stroke(BLACK, 5, 1, True)
+            tc_net_angle = TexContainer(net_angle_steps[0], get_angle_tex)
             tc_net_angle.move_to(plane["axes"].c2p(1, -1))
             self.play(Write(tc_net_angle))
 
             self.wait(0.5)
 
-            arrow_qvq = LabeledArrow( arrow_qv.arrow.copy(), math_tex("qv").scale(plane_scale) )
+            arrow_qvq = LabeledArrow( arrow_qv.arrow.copy(), get_outlined_tex("qv").scale(plane_scale), distance=arrow_label_dist )
             conditional_steps = [ FadeOut(labeled_arrow.label) ] if reverse_step_2 else []
             self.play(
                 Rotate(arrow_qvq.arrow, angle2, about_point=origin),
-                replace_tex(arrow_qvq.label, math_tex(label2).scale(plane_scale) ),
+                replace_tex(arrow_qvq.label, get_outlined_tex(label2).scale(plane_scale) ),
                 Create(mobj_angle2),
                 *conditional_steps
             )
@@ -1221,12 +1379,31 @@ class DualPlanes(Scene):
         ])
         self.wait()
 
+        self.play(FadeOut(exposition6, exposition7))
+        exposition8 = style_exposition( colored_tex(
+            r"The rotation in the complex-plane is doubled while the rotation in the $jk$-plane cancels.",
+            **texkw
+        ) ).to_edge(UP)
+        self.play(Write(exposition8))
+        self.wait(4)
+
         self.play(
-            tex_sandwich_1.animate.set_opacity(0.25),
+            FadeOut(tex_sandwich_1),
             FadeOut(sandwich1, sandwich2),
             FadeIn(arrow_cd.label),
-            Write(tex_sandwich_2),
         )
+
+        self.play(FadeOut(exposition8))
+        exposition9 = style_exposition( colored_tex(
+            r"If instead we multiply by the inverse rotation, $\overline{q}$, on the right...",
+            **texkw
+        ) ).to_edge(UP)
+        self.play(Write(exposition9))
+        self.wait(1)
+        self.play(Write(tex_q_conj))
+        self.wait(1)
+
+        self.play(Write(tex_sandwich_2))
         self.wait()
 
         label = "qv\\overline{q}"
@@ -1243,48 +1420,87 @@ class DualPlanes(Scene):
         ])
         self.wait()
 
+        self.play(FadeOut(exposition9))
+        exposition10 = style_exposition( colored_tex(
+            r"The rotation in the complex-plane cancels while the rotation in the $jk$-plane is doubled.",
+            **texkw
+        ) ).to_edge(UP)
+        self.play(Write(exposition10))
+        self.wait()
+
 class RotationFormula(Scene):
     def construct(self):
-        tex_title = Tex(r"Rotation Formula").to_corner(UL)
-        self.add(tex_title)
+        exposition1 = style_exposition( colored_tex(
+            r"Now that we eliminated rotation through the complex plane,\\we have a formula for proper 3D rotations about $i$...",
+            t2c=color_map
+        ) ).to_edge(UP)
+        self.play(Write(exposition1))
+        self.wait(2)
 
         lines = VGroup(
             VGroup(
-                Tex("The map"),
-                colored_math_tex(r"v \rightarrow q v \overline{q}", t2c=color_map),
-                Tex(r"rotates $v$ about ", "$i$", " by ").set_color_by_tex("i", RED),
+                colored_math_tex(r"q v \overline{q}", t2c=color_map),
+                colored_tex(r"rotates $v$ counter-clockwise about $i$ by ", t2c=color_map),
                 tex_angle := colored_math_tex(r"2 \theta", t2c=color_map)
             ).arrange(),
             Tex("where"),
             tex_q_def := colored_math_tex(r"q = cos(\theta) + i sin(\theta)", t2c=color_map),
         ).arrange(DOWN)
-
+        rect = SurroundingRectangle(lines)
+        lines.add(rect)
         
         self.play(Write(lines))
+        self.wait(4)
+
+        exposition2 = style_exposition( colored_tex(
+            r"Let's halve this angle to rotate by $\theta$ instead.",
+            t2c=color_map
+        ) ).next_to(lines, DOWN)
+        self.play(Write(exposition2))
         self.wait()
 
         self.play(Indicate(tex_angle[1]), Indicate(tex_q_def[2]), Indicate(tex_q_def[6]))
 
         q_def_2_string = r"q = cos(\tfrac{1}{2}\theta) + i sin(\tfrac{1}{2}\theta)"
         _color_map = color_map | {r"\tfrac{1}{2}":WHITE}
+        tex_q_def_2 = colored_math_tex(q_def_2_string, t2c=_color_map).move_to(tex_q_def)
+        tex_angle_2 = colored_math_tex(r"\theta", t2c=color_map).move_to(tex_angle, LEFT)
         self.play( 
             LaggedStart(
-                TransformMatchingTex( tex_q_def, colored_math_tex(q_def_2_string, t2c=_color_map).move_to(tex_q_def) ),
-                TransformMatchingTex( tex_angle, colored_math_tex(r"\theta", t2c=color_map).move_to(tex_angle, LEFT), shift=ORIGIN ),
+                TransformMatchingTex( tex_q_def, tex_q_def_2),
+                TransformMatchingTex( tex_angle, tex_angle_2, shift=ORIGIN ),
                 lag_ratio=0.75
             ),
             run_time=1.5
         )
+        lines.remove(tex_angle, tex_q_def)
+        lines.add(tex_angle_2, tex_q_def_2)
+
+        self.wait(2)
+
+        self.play(FadeOut(exposition1, exposition2, lines))
+        exposition3 = style_exposition( colored_tex(
+            "Now the question is, can we generalize this to rotations about any axis?",
+            t2c={"any":YELLOW}
+        ) )
+        self.play(Write(exposition3))
 
 class PrimeCoordinates(ThreeDScene):
     def construct(self):
-        if config.renderer == "opengl":
-            self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
-        else:
-            self.set_camera_orientation(phi=65*DEGREES, theta=20*DEGREES)
+        def prep_exposition(exposition: Mobject):
+            style_exposition(exposition)
+            self.add_fixed_in_frame_mobjects(exposition)
+            return exposition
+
+        scene_color_map = {
+            "arbitrary": YELLOW, "general": YELLOW
+        } | color_map
+        texkw = {"t2c":scene_color_map}
 
         def get_tex(string):
             return colored_math_tex(string, t2c=color_map)
+            
+        self.set_camera_orientation(phi=65*DEGREES, theta=125*DEGREES)
 
         axes = standard_axes()
         numplane = jkplane()
@@ -1295,34 +1511,85 @@ class PrimeCoordinates(ThreeDScene):
         arrow_i, arrow_j, arrow_k, tex_i, tex_j, tex_k = frame
         self.add(arrow_i, arrow_j, arrow_k)
         self.add_fixed_orientation_mobjects( tex_i, tex_j, tex_k )
-
         self.wait()
+
+        def play_multiply(angle, axis):
+            arrow_j2 = arrow_j.copy()
+            iprime = rotate_vector(vi, angle, axis)
+            radius = 1.05
+            curve = CurvedArrow(
+                polar2xy( (90 - 10) * DEGREES, radius ),
+                polar2xy( 10 * DEGREES,        radius ),
+                radius=-radius,
+                tip_length=0.2,
+                stroke_width=6,
+                color=RED
+            ).rotate_about_origin(-PI/2, vj).rotate_about_origin(angle, axis)
+            self.play(
+                Rotate(arrow_j2, PI/2, iprime, ORIGIN),
+                Indicate(arrow_i, 1),
+                Indicate(tex_i),
+                Create(curve),
+                run_time=2
+            )
+            self.play(FadeOut(arrow_j2))
+            self.remove(curve)
+
+        play_multiply(0, vi)
+
+        self.next_section()
+
+        exposition1 = prep_exposition( colored_tex(
+            r"Let's switch to a rotated coordinate system."
+        ) ).to_edge(UP)
+        self.play(Write(exposition1))
 
         def transform_tex_anim(tex_from, tex_to):
             tex_to.move_to(tex_from).fix_orientation()
             tex_to.add_updater(tex_from.get_updaters()[0])
             return Transform(tex_from, tex_to)
         
+        angle = PI * 0.8
+        axis = normalize(vi * 1.2 + vj + vk)
+
         self.play( 
             *[
-                Rotate( mobj, PI/3, normalize(vi - vj - vk), about_point=ORIGIN )
+                Rotate( mobj, angle, axis, about_point=ORIGIN )
                 # for mobj in [ numplane, arrow_i, arrow_j, arrow_k ]
                 for mobj in [ arrow_i, arrow_j, arrow_k ]
             ],
             transform_tex_anim(tex_i, get_tex("i'")),
             transform_tex_anim(tex_j, get_tex("j'")),
-            transform_tex_anim(tex_k, get_tex("k'"))
+            transform_tex_anim(tex_k, get_tex("k'")),
+            run_time=2
         )
-
-        self.move_camera(phi=30*DEGREES, theta=70*DEGREES)
         self.wait()
+
+        self.play(FadeOut(exposition1))
+        exposition2 = prep_exposition( colored_tex(
+            r"Because this choice of coordinate system is arbitrary,\\",
+            r"if we find a rotation formula that works about $i'$,\\",
+            r"it will be a general 3D rotation formula.", **texkw
+        ) ).to_edge(UP)
+        self.play(Write(exposition2), run_time=4)
+        self.wait()
+
+        self.next_section()
+
+        play_multiply(angle, axis)
+
+        # self.move_camera(phi=30*DEGREES, theta=70*DEGREES)
+        # self.wait()
 
 class Isomorphism(Scene):
     def construct(self):
         words = ["-", "="]
-        local_color_map = color_map | { "a":BLUE, "b":GREEN }
+        scene_color_map = color_map | {}
+        def get_math_tex(string, t2c={}):
+            return colored_math_tex(string, words=words, t2c=scene_color_map | t2c)
+
         def get_tex(string, t2c={}):
-            return colored_math_tex(string, words=words, t2c=local_color_map | t2c)
+            return colored_tex(string, t2c=scene_color_map | t2c)
 
         def ident_and_rotation_formula(i, j, k):
             replace = lambda string: string.replace("@i", i).replace("@j", j).replace("@k", k)
@@ -1331,39 +1598,70 @@ class Isomorphism(Scene):
                 text_rot = replace(r"q v \overline{q} \text{ rotates } v \text{ about } @i}")
                 text_rot2 = replace(r"\text{counter-clockwise by } \theta")
                 text_q = replace(r"q = cos( \frac{1}{2} \theta) + @i sin( \frac{1}{2} \theta)")
-                tex_rot = get_tex(text_rot)
-                tex_rot2 = get_tex(text_rot2)
-                tex_q = get_tex(text_q)
+                tex_rot = get_math_tex(text_rot)
+                tex_rot2 = get_math_tex(text_rot2)
+                tex_q = get_math_tex(text_q)
                 lines = VGroup(tex_rot, tex_rot2, tex_q).arrange(DOWN)
                 rect = SurroundingRectangle(lines, fill_color=BLACK, fill_opacity=1)
                 return VGroup(
                     MathTex(r"\Rightarrow"),
                     VGroup(rect, lines)
-                ).arrange(RIGHT).scale(0.75)
+                ).arrange(RIGHT, 1/0.75).scale(0.75)
 
             text_ident = replace(r"@i^2 = @j^2 = @k^2 = @i @j @k = -1")
-            tex_ident = get_tex(text_ident).set_stroke(BLACK, 5, 1, True)
+            tex_ident = get_math_tex(text_ident).set_stroke(BLACK, 5, 1, True)
 
-            return VGroup(tex_ident, rotation_formula()).arrange(RIGHT, buff=0.5)
+            return VGroup(tex_ident, rotation_formula()).arrange(RIGHT, buff=1)
 
         equations = ident_and_rotation_formula("i", "j", "k")
-        equations_prime = ident_and_rotation_formula("{i'}", "{j'}", "{k'}")
+        equations_prime = ident_and_rotation_formula("{i'}", "{j'}", "{k'}").set_opacity(0)
 
-        table = VGroup(
-            *equations, 
-            *equations_prime
-        ).arrange_in_grid(2, 2, col_alignments="rl", buff=(0.25, 0.5))
-
+        # Present original syllogism
         self.play(FadeIn(equations[0]))
+        exposition1 = style_exposition( get_tex("Remember, this formula allowed us to define the product of $i$, $j$ and $k$.") ).to_edge(UP)
+        self.play(Write(exposition1))
+        self.wait()
+
+        exposition2 = style_exposition( get_tex("And from it, we were able to prove this rotation formula.") ).next_to(exposition1, DOWN)
+        self.play(Write(exposition2))
         self.wait()
         self.play(FadeIn(equations[1]))
         self.wait()
+        self.play(FadeOut(exposition1, exposition2))
 
-        self.play(Write(equations_prime[0]))
-        self.wait(2)
-        self.play(FadeIn(equations_prime[1]))
+        table = VGroup(*equations_prime, *equations)
+        self.play( table.animate.arrange_in_grid(2, 2, col_alignments="rl", buff=(1, 0.5)).shift(DOWN*.5) )
+
+        # Present analogous syllogism
+        exposition3 = style_exposition( get_tex("So, if this analogous formula for $i'$, $j'$ and $k'$ holds,") ).to_edge(UP)
+        self.play(Write(exposition3))
+        self.play(Write(equations_prime[0].set_opacity(1)))
         self.wait(2)
 
+        exposition4 = style_exposition( get_tex("then a similar proof should show this formula for rotations about $i'$.") ).next_to(exposition3, DOWN)
+        self.play(Write(exposition4))
+        self.play(FadeIn(equations_prime[1].set_opacity(1)))
+        self.wait(2)
+
+        self.play(FadeOut(exposition3, exposition4, table))
+
+        exposition5 = style_exposition( get_tex(
+            r"Put another way, if our rotated basis vectors multiply analogously to our original basis vectors, "\
+            r"then our rotation formula generalizes to rotations\\about $i'$."
+        ) ).to_edge(UP)
+        self.play(Write(exposition5), run_time=4)
+
+        analogy_table = VGroup(
+            VGroup( get_math_tex("i j = k"), Rectangle(WHITE, 3, 3) ).arrange(DOWN),
+            # DoubleArrow(ORIGIN, RIGHT * 2, tip_length=0.25),
+            MathTex("\Leftrightarrow"),
+            VGroup( get_math_tex("i' j' = k'"), Rectangle(WHITE, 3, 3) ).arrange(DOWN)
+        ).arrange(buff=0.5).shift(DOWN*0.5)
+
+        self.play(FadeIn(analogy_table))
+
+        return
+        
         ident, rotation_formula = equations_prime
         self.play( FadeOut( equations, equations_prime[1] ), ident.animate.to_corner(UL) )
         self.wait()
@@ -1372,9 +1670,9 @@ class Isomorphism(Scene):
         # tex_dot = get_tex(r"a \cdot b = |a||b|cos(\theta)", t2c={r"\theta":WHITE}).to_corner(UR)
         # tex_cross_length.to_corner(UR)
         # tex_dot.next_to(tex_cross_length, DOWN)
-        tex_quat_product = get_tex(r"u v = u \times v - u \cdot v").to_corner(UR)
+        tex_quat_product = get_math_tex(r"u v = u \times v - u \cdot v").to_corner(UR)
 
-        tc = TexContainer("{i'}^2", get_tex)
+        tc = TexContainer("{i'}^2", get_math_tex)
         self.play(Write(tc))
         self.wait()
 
@@ -1406,21 +1704,21 @@ class Isomorphism(Scene):
         self.play(FadeOut(tc))
         self.wait()
 
-        tc = TexContainer("i' j' k'", get_tex)
+        tc = TexContainer("i' j' k'", get_math_tex)
         self.play(FadeIn(tc))
         self.wait()
 
         self.play(Indicate(tc.tex[:2]))
         self.wait()
 
-        tc_ij = TexContainer(r"i' j' = i' \times j' - i' \cdot j'", get_tex).next_to(tc, DOWN, buff=0.5)
+        tc_ij = TexContainer(r"i' j' = i' \times j' - i' \cdot j'", get_math_tex).next_to(tc, DOWN, buff=0.5)
         self.play(Write(tc_ij))
         self.wait()
         for part in tc_ij.tex[6:]:
             part.tex_string += "_" # Don't match these strings.
         self.play(tc_ij.transform(r"i' j' = i' \times j'"))
         self.wait()
-        tex_ij2 = get_tex(r"i' j' = i' \times j' = k'").move_to(tc_ij, LEFT)
+        tex_ij2 = get_math_tex(r"i' j' = i' \times j' = k'").move_to(tc_ij, LEFT)
         self.play(Write(tex_ij2[6:]))
         self.wait()
 

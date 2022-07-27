@@ -1207,7 +1207,7 @@ class ComplexMultiplication(MovingCameraScene):
             lambda: angle_v.get_value() + angle_u.get_value(),
             get_length=lambda: length_v * length_u.get_value(),
             color=YELLOW,
-        )
+        ).set_z_index(1)
         arrow_uv.add_updater(lambda x: x.set_opacity(alpha_uv.get_value()), True)
 
         self.play(arrow_v.grow_animation())
@@ -1325,10 +1325,10 @@ class ComplexMultiplication(MovingCameraScene):
             VGroup(
                 line1 := VGroup(
                     colored_tex( r"After factoring, $v'$ just becomes $v$ times", **texkw ),
-                    get_tex(r"r (cos \theta + i sin \theta) \text{.}")
+                    get_tex(r"r (cos \, \theta + i sin \, \theta) \text{.}")
                 ).arrange(RIGHT),
                 VGroup(
-                    line2 := VGroup(colored_tex(r"So multiplying by"), get_tex(r"r (cos \theta + i sin \theta)")).arrange(RIGHT),
+                    line2 := VGroup(colored_tex(r"So multiplying by"), get_tex(r"r (cos \, \theta + i sin \, \theta)")).arrange(RIGHT),
                     line3 := colored_tex(r"rotates numbers by $\theta$, its argument,", **texkw ),
                 ).arrange(RIGHT),
                 line4 := colored_tex(r"and scales them by $r$, its modulus.", **texkw )

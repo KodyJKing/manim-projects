@@ -30,7 +30,11 @@ def angle_label_pos(line1, line2, radius, **kwargs):
     return Angle( line1, line2, radius=radius, **kwargs).point_from_proportion(0.5)
 
 def colored_math_tex(*tex_strings, words:List[str]=[], t2c:dict[str, str]={}, **kwargs):
-    """MathTex, but with better coloring behaviour."""
+    """
+        MathTex, but with better coloring behaviour.
+        Does not match patterns in the middle of a word,
+        allowing one to color "i" without coloring "sin" for example.
+    """
 
     def get_tex_strings():
         keys = [*words, *t2c.keys()]
@@ -53,10 +57,11 @@ def colored_math_tex(*tex_strings, words:List[str]=[], t2c:dict[str, str]={}, **
     result = MathTex(*tex_strings, **kwargs)
     result.set_color_by_tex_to_color_map(t2c, substring=False)
 
-    # Fix isolated closing brackets. These break Write animations.
+    # Remove lone invisible glyphs. These break Write animations.
+    invisible_glyphs = ["}", r"\,"]
     for mob in result.submobjects:
         tex_string = mob.tex_string.strip(" ")
-        if tex_string == "}":
+        if tex_string in invisible_glyphs:
             result.remove(mob)
 
     return result
