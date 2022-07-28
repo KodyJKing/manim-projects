@@ -1,13 +1,16 @@
+from email.errors import FirstHeaderLineIsContinuationDefect
 from typing import List
 from webbrowser import get
 from click import style
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
+from pkg_resources import yield_lines
 from sympy import ZZ_I, rad
 from complex import AlgebraicProps
 from lib.TexContainer import TexContainer
 from lib.angle3D import angle3D
+from lib.arrow_angle import arrow_angle
 from lib.mathutils import polar2xy, relative_quaternion, relative_quaternion2, smoothstep
 import numpy as np
 
@@ -1431,22 +1434,26 @@ class DualPlanes(Scene):
 class RotationFormula(Scene):
     def construct(self):
         exposition1 = style_exposition( colored_tex(
-            r"Now that we eliminated rotation through the complex plane,\\we have a formula for proper 3D rotations about $i$...",
+            r"Now we have a formula for rotations about $i$...",
             t2c=color_map
         ) ).to_edge(UP)
         self.play(Write(exposition1))
-        self.wait(2)
+        self.wait(1)
 
         lines = VGroup(
             VGroup(
                 colored_math_tex(r"q v \overline{q}", t2c=color_map),
-                colored_tex(r"rotates $v$ counter-clockwise about $i$ by ", t2c=color_map),
+                colored_tex(r"rotates $v$ about $i$", t2c=color_map)
+            ).arrange(RIGHT),
+            line2 := VGroup(
+                colored_tex("counter-clockwise by "),
                 tex_angle := colored_math_tex(r"2 \theta", t2c=color_map)
-            ).arrange(),
+            ).arrange(RIGHT),
             Tex("where"),
             tex_q_def := colored_math_tex(r"q = cos(\theta) + i sin(\theta)", t2c=color_map),
+            # tex_q_conj_def := colored_math_tex(r"\overline{q} = cos(\theta) - i sin(\theta)", t2c=color_map),
         ).arrange(DOWN)
-        rect = SurroundingRectangle(lines)
+        rect = SurroundingRectangle(lines, color=WHITE)
         lines.add(rect)
         
         self.play(Write(lines))
@@ -1459,31 +1466,112 @@ class RotationFormula(Scene):
         self.play(Write(exposition2))
         self.wait()
 
-        self.play(Indicate(tex_angle[1]), Indicate(tex_q_def[2]), Indicate(tex_q_def[6]))
+        self.play(
+            Indicate(tex_angle[1]),
+            Indicate(tex_q_def[2]), Indicate(tex_q_def[6]),
+            # Indicate(tex_q_conj_def[2]), Indicate(tex_q_conj_def[6])
+        )
 
         q_def_2_string = r"q = cos(\tfrac{1}{2}\theta) + i sin(\tfrac{1}{2}\theta)"
+        q_conj_def_2_string = r"\overline{q} = cos(\tfrac{1}{2}\theta) - i sin(\tfrac{1}{2}\theta)"
         _color_map = color_map | {r"\tfrac{1}{2}":WHITE}
         tex_q_def_2 = colored_math_tex(q_def_2_string, t2c=_color_map).move_to(tex_q_def)
+        # tex_q_conj_def_2 = colored_math_tex(q_conj_def_2_string, t2c=_color_map).move_to(tex_q_conj_def)
         tex_angle_2 = colored_math_tex(r"\theta", t2c=color_map).move_to(tex_angle, LEFT)
         self.play( 
             LaggedStart(
+                # TransformMatchingTex( tex_q_conj_def, tex_q_conj_def_2),
                 TransformMatchingTex( tex_q_def, tex_q_def_2),
                 TransformMatchingTex( tex_angle, tex_angle_2, shift=ORIGIN ),
                 lag_ratio=0.75
             ),
-            run_time=1.5
+            run_time=2
         )
-        lines.remove(tex_angle, tex_q_def)
-        lines.add(tex_angle_2, tex_q_def_2)
+        # lines.remove(tex_q_def, tex_q_conj_def)
+        lines.remove(tex_q_def)
+        # lines.add(tex_q_def_2, tex_q_conj_def_2)
+        lines.add(tex_q_def_2)
+        line2.remove(tex_angle)
+        line2.add(tex_angle_2)
 
+        self.play(FadeOut(exposition2))
         self.wait(2)
 
-        self.play(FadeOut(exposition1, exposition2, lines))
+        self.play(FadeOut(exposition1, lines))
         exposition3 = style_exposition( colored_tex(
             "Now the question is, can we generalize this to rotations about any axis?",
             t2c={"any":YELLOW}
         ) )
         self.play(Write(exposition3))
+
+class Rotation(ThreeDScene):
+    def construct(self):
+
+        def play_section(rot_axis, label_str, angle_offset, label_dist):
+            self.clear()
+            self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
+
+            angle_tracker = ValueTracker(0.0001)
+
+            axes = ThreeDAxes(
+                x_length=2, y_length=2, z_length=2,
+                x_range=[-1, 1], y_range=[-1, 1], z_range=[-1, 1],
+                tips=False
+            ).set_opacity(0.25)
+
+            arrow = Arrow3D(ORIGIN, rot_axis, color=RED)
+            label = style_exposition( MathTex(label_str, color=RED) )
+            label.shift(rot_axis * label_dist)
+            label.fix_orientation()
+
+            line = Line(-rot_axis*2, rot_axis*2, color=RED)
+
+            # obj_ref = Cube(1, .75).add(Cube(.5, .75, RED).shift(vj)).add(Cube(.5, .75, GREEN).shift(vk))
+            obj_ref = Cube(1, .75).add(Cube(.5, .75, RED).shift(vj*.75)).add(Cube(.5, .75, GREEN).shift(vk*.75))
+            obj = always_redraw(
+                lambda: obj_ref.copy().shift(-vi*1.5).rotate_about_origin(angle_tracker.get_value(), rot_axis)
+            )
+
+            def get_angle():
+                theta = angle_tracker.get_value()
+                angle = arrow_angle( theta, 0.5, rot_axis, angle_offset)
+                alpha = smoothstep(0, 10*DEGREES, theta)
+                angle.get_tip().set_opacity(alpha)
+                angle.set_stroke(opacity=alpha)
+                return angle
+            angle = always_redraw(get_angle)
+
+            def get_angle_reading():
+                theta = angle_tracker.get_value()
+                group = VGroup(
+                    colored_math_tex(r"\theta = ", t2c=color_map),
+                    DecimalNumber(theta/DEGREES, 1, unit="^\circ")
+                ).arrange(RIGHT)
+                return group.fix_in_frame().scale(2/3).shift(DOWN * 1.1)
+            angle_reading = always_redraw(get_angle_reading)
+
+            # self.add(obj, axes, line, angle, arrow, angle_reading)
+            self.add(obj, axes, angle, arrow, label, angle_reading)
+            self.wait()
+            # self.play(angle_tracker.animate.set_value(TAU/6))
+            self.play(angle_tracker.animate.set_value(TAU/8))
+            self.wait()
+
+        play_section(
+            rot_axis = vi,
+            label_str = "i",
+            angle_offset = PI / 2,
+            label_dist = 1.25
+        )
+
+        self.next_section()
+
+        play_section(
+            rot_axis = normalize(vi + vj),
+            angle_offset = TAU / 3,
+            label_str = r"\hat{n}",
+            label_dist = 1.125   
+        )
 
 class PrimeCoordinates(ThreeDScene):
     def construct(self):
@@ -1500,7 +1588,9 @@ class PrimeCoordinates(ThreeDScene):
         def get_tex(string):
             return colored_math_tex(string, t2c=color_map)
             
-        self.set_camera_orientation(phi=65*DEGREES, theta=125*DEGREES)
+        # self.set_camera_orientation(phi=65*DEGREES, theta=125*DEGREES)
+        # self.set_camera_orientation(phi=65*DEGREES, theta=135*DEGREES)
+        self.set_camera_orientation(phi=54.7*DEGREES, theta=135*DEGREES)
 
         axes = standard_axes()
         numplane = jkplane()
@@ -1511,7 +1601,6 @@ class PrimeCoordinates(ThreeDScene):
         arrow_i, arrow_j, arrow_k, tex_i, tex_j, tex_k = frame
         self.add(arrow_i, arrow_j, arrow_k)
         self.add_fixed_orientation_mobjects( tex_i, tex_j, tex_k )
-        self.wait()
 
         def play_multiply(angle, axis):
             arrow_j2 = arrow_j.copy()
@@ -1525,6 +1614,7 @@ class PrimeCoordinates(ThreeDScene):
                 stroke_width=6,
                 color=RED
             ).rotate_about_origin(-PI/2, vj).rotate_about_origin(angle, axis)
+            axes.set_opacity(0.25)
             self.play(
                 Rotate(arrow_j2, PI/2, iprime, ORIGIN),
                 Indicate(arrow_i, 1),
@@ -1534,11 +1624,13 @@ class PrimeCoordinates(ThreeDScene):
             )
             self.play(FadeOut(arrow_j2))
             self.remove(curve)
+            axes.set_opacity(1)
 
         play_multiply(0, vi)
 
         self.next_section()
 
+        self.wait()
         exposition1 = prep_exposition( colored_tex(
             r"Let's switch to a rotated coordinate system."
         ) ).to_edge(UP)
@@ -1549,8 +1641,9 @@ class PrimeCoordinates(ThreeDScene):
             tex_to.add_updater(tex_from.get_updaters()[0])
             return Transform(tex_from, tex_to)
         
-        angle = PI * 0.8
-        axis = normalize(vi * 1.2 + vj + vk)
+        # angle = TAU * (1/3 + 1/12)
+        angle = TAU * (-1/3 + 1/12)
+        axis = normalize(vi + vj + vk)
 
         self.play( 
             *[
@@ -1581,6 +1674,28 @@ class PrimeCoordinates(ThreeDScene):
         # self.move_camera(phi=30*DEGREES, theta=70*DEGREES)
         # self.wait()
 
+def ident_and_rotation_formula(i, j, k):
+    replace = lambda string: string.replace("@i", i).replace("@j", j).replace("@k", k)
+
+    def rotation_formula():
+        text_rot = replace(r"q v \overline{q} \text{ rotates } v \text{ about } @i}")
+        text_rot2 = replace(r"\text{counter-clockwise by } \theta")
+        text_q = replace(r"q = cos( \tfrac{1}{2} \theta) + @i sin( \tfrac{1}{2} \theta)")
+        tex_rot = colored_math_tex(text_rot, t2c=color_map)
+        tex_rot2 = colored_math_tex(text_rot2, t2c=color_map)
+        tex_q = colored_math_tex(text_q, t2c=color_map)
+        lines = VGroup(tex_rot, tex_rot2, tex_q).arrange(DOWN)
+        rect = SurroundingRectangle(lines, color=WHITE, fill_color=BLACK, fill_opacity=1)
+        return VGroup(
+            MathTex(r"\Rightarrow"),
+            VGroup(rect, lines)
+        ).arrange(RIGHT, 1/0.75).scale(0.75)
+
+    text_ident = replace(r"@i^2 = @j^2 = @k^2 = @i @j @k = -1")
+    tex_ident = colored_math_tex(text_ident, words=["^2"], t2c=color_map).set_stroke(BLACK, 5, 1, True)
+
+    return VGroup(tex_ident, rotation_formula()).arrange(RIGHT, buff=1)
+
 class Isomorphism(Scene):
     def construct(self):
         words = ["-", "="]
@@ -1590,28 +1705,6 @@ class Isomorphism(Scene):
 
         def get_tex(string, t2c={}):
             return colored_tex(string, t2c=scene_color_map | t2c)
-
-        def ident_and_rotation_formula(i, j, k):
-            replace = lambda string: string.replace("@i", i).replace("@j", j).replace("@k", k)
-
-            def rotation_formula():
-                text_rot = replace(r"q v \overline{q} \text{ rotates } v \text{ about } @i}")
-                text_rot2 = replace(r"\text{counter-clockwise by } \theta")
-                text_q = replace(r"q = cos( \frac{1}{2} \theta) + @i sin( \frac{1}{2} \theta)")
-                tex_rot = get_math_tex(text_rot)
-                tex_rot2 = get_math_tex(text_rot2)
-                tex_q = get_math_tex(text_q)
-                lines = VGroup(tex_rot, tex_rot2, tex_q).arrange(DOWN)
-                rect = SurroundingRectangle(lines, fill_color=BLACK, fill_opacity=1)
-                return VGroup(
-                    MathTex(r"\Rightarrow"),
-                    VGroup(rect, lines)
-                ).arrange(RIGHT, 1/0.75).scale(0.75)
-
-            text_ident = replace(r"@i^2 = @j^2 = @k^2 = @i @j @k = -1")
-            tex_ident = get_math_tex(text_ident).set_stroke(BLACK, 5, 1, True)
-
-            return VGroup(tex_ident, rotation_formula()).arrange(RIGHT, buff=1)
 
         equations = ident_and_rotation_formula("i", "j", "k")
         equations_prime = ident_and_rotation_formula("{i'}", "{j'}", "{k'}").set_opacity(0)
@@ -1636,20 +1729,21 @@ class Isomorphism(Scene):
         exposition3 = style_exposition( get_tex("So, if this analogous formula for $i'$, $j'$ and $k'$ holds,") ).to_edge(UP)
         self.play(Write(exposition3))
         self.play(Write(equations_prime[0].set_opacity(1)))
-        self.wait(2)
+        self.wait(4)
 
         exposition4 = style_exposition( get_tex("then a similar proof should show this formula for rotations about $i'$.") ).next_to(exposition3, DOWN)
         self.play(Write(exposition4))
         self.play(FadeIn(equations_prime[1].set_opacity(1)))
-        self.wait(2)
+        self.wait(6)
 
         self.play(FadeOut(exposition3, exposition4, table))
 
         exposition5 = style_exposition( get_tex(
-            r"Put another way, if our rotated basis vectors multiply analogously to our original basis vectors, "\
-            r"then our rotation formula generalizes to rotations\\about $i'$."
+            r"Put another way, if the rotated vectors multiply analogously to the original vectors, "\
+            r"then our rotation formula generalizes to rotations about $i'$."
         ) ).to_edge(UP)
         self.play(Write(exposition5), run_time=4)
+        self.wait(1)
 
         analogy_table = VGroup(
             VGroup( get_math_tex("i j = k"), Rectangle(WHITE, 3, 3) ).arrange(DOWN),
@@ -1660,53 +1754,115 @@ class Isomorphism(Scene):
 
         self.play(FadeIn(analogy_table))
 
-        return
+class IsomorphismProof(Scene):
+    def construct(self):
+        words = ["-", "=", "^2"]
+        scene_color_map = color_map | {
+            "vector quaternions": YELLOW,
+            "right-hand rule": YELLOW
+        }
+        def get_math_tex(string, t2c={}):
+            return colored_math_tex(string, words=words, t2c=scene_color_map | t2c)
+        def get_tex(string, t2c={}):
+            return colored_tex(string, t2c=scene_color_map | t2c)
+
+        equations_prime = ident_and_rotation_formula("{i'}", "{j'}", "{k'}")
         
         ident, rotation_formula = equations_prime
-        self.play( FadeOut( equations, equations_prime[1] ), ident.animate.to_corner(UL) )
+
+        exposition1 = style_exposition( get_tex( r"So now our goal is just to prove this multiplication formula." ) )
+        VGroup(exposition1, ident).arrange(DOWN)
+        self.play( LaggedStart( Write(exposition1), FadeIn(ident), lag_ratio=0.6 ), run_time=3 )
+        self.wait(2)
+
+        ident_group = VGroup( tex_prove := get_tex("Prove:").next_to(ident, LEFT), ident )
+        self.play( Write(tex_prove), FadeOut(exposition1) )
+        self.play(ident_group.animate.scale(2/3).to_corner(UL))
+
+        exposition2 = style_exposition( get_tex( r"We'll need the formula we found last chapter for\\the product of vector quaternions." ) )
+        tex_quat_product = get_math_tex(r"u v = u \times v - u \cdot v")#.to_corner(UR)
+        VGroup(exposition2, tex_quat_product).arrange(DOWN)
+        self.play( LaggedStart( Write(exposition2), FadeIn(tex_quat_product), lag_ratio=0.6 ), run_time=3 )
+        self.wait(2)
+
+        self.play(FadeOut(exposition2), tex_quat_product.animate.scale(2/3).to_corner(UR).move_to(ident, coor_mask=UP))
         self.wait()
 
-        # tex_cross_length = get_tex(r"|a \times b| = |a||b|sin(\theta)", t2c={r"\theta":WHITE})
-        # tex_dot = get_tex(r"a \cdot b = |a||b|cos(\theta)", t2c={r"\theta":WHITE}).to_corner(UR)
-        # tex_cross_length.to_corner(UR)
-        # tex_dot.next_to(tex_cross_length, DOWN)
-        tex_quat_product = get_math_tex(r"u v = u \times v - u \cdot v").to_corner(UR)
-
+        exposition3 = style_exposition( get_tex( r"First let's show that $i'$, $j'$ and $k'$ all square to $-1$." ) )
         tc = TexContainer("{i'}^2", get_math_tex)
-        self.play(Write(tc))
-        self.wait()
+        VGroup(exposition3, tc).arrange(DOWN, 0.5)
 
-        self.play(Write(tex_quat_product))
+        self.play(Write(exposition3))
+
+        tex_i_sq = ident[0:2]
+        tex_j_sq = ident[3:5]
+        tex_k_sq = ident[6:8]
+        tex_minusone = ident[12]
+        
+        self.play(
+            LaggedStart(
+                *[ Indicate(tex) for tex in [tex_i_sq, tex_j_sq, tex_k_sq] ],
+                Indicate(tex_minusone), lag_ratio=0.4
+            )
+        )
+
+        self.play(Write(tc))
         self.wait()
 
         self.play(tc.transform(r"{i'}^2 = {i'} \times {i'} - {i'} \cdot {i'}"))
         self.wait()
 
-        # self.play(FadeIn(tex_cross_length))
+        exposition4 = style_exposition( get_tex( r"Any vector crossed with itself goes to zero..." ) )
+        exposition4.move_to(exposition3)
+        self.play(FadeOut(exposition3))
+        self.play(Write(exposition4))
+
+        tex_i_cross_i = tc.tex[3:6]
+
+        # self.add(index_labels(tc.tex))
         # self.wait()
-        
+
+        self.play(Indicate(tex_i_cross_i))
+
         for part in tc.tex[3:6]:
             part.tex_string += "_" # Don't match these strings.
         self.play(tc.transform(r"{i'}^2 = - {i'} \cdot {i'}"))
         self.wait()
 
-        # self.play(FadeIn(tex_dot))
-        # self.wait()
+        exposition5 = style_exposition( get_tex( r"And the dot product of a vector with itself is its length squared." ) )
+        exposition5.move_to(exposition4)
+        self.play(FadeOut(exposition4))
+        self.play(Write(exposition5))
 
-        self.play(tc.transform(r"{i'}^2 = - |{i'}|^2"))
+        self.play(tc.replace(r"{i'}^{2} = - {i'} \cdot {i'}"))
+        self.play(tc.transform(r"{i'}^{2} = - |{i'}|^2", shift=DOWN))
         self.wait()
-        self.play(tc.transform(r"{i'}^2 = - 1"))
+        self.play(FadeOut(exposition5))
+
+        self.play(tc.transform(r"{i'}^{2} = - 1"))
         self.wait()
 
-        self.play(tc.transform(r"{i'}^2 = {j'}^2 = {k'}^2 = - 1"))
+        exposition6 = style_exposition( get_tex( r"The same logic applies for $j'$ and $k'$." ) )
+        exposition6.move_to(exposition5)
+        self.play(Write(exposition6))
+
+        self.play(tc.transform(r"{i'}^{2} = {j'}^2 = {k'}^2 = - 1"))
         self.wait()
 
-        self.play(FadeOut(tc))
+        self.play(FadeOut(tc, exposition6))
         self.wait()
 
-        tc = TexContainer("i' j' k'", get_math_tex)
+        exposition7 = style_exposition( get_tex( r"Now we just have to show that $i'$$j'$$k'$ is $-1$." ) )
+        tc = TexContainer("i' j' k'", get_math_tex).move_to(tc)
+        VGroup(exposition7, tc).arrange(DOWN, 0.5)
+        self.play(Write(exposition7))
         self.play(FadeIn(tc))
         self.wait()
+
+        exposition8 = style_exposition( get_tex( r"Let's evaluate the $i'$$j'$ term." ) )
+        exposition8.move_to(exposition7)
+        self.play(FadeOut(exposition7))
+        self.play(Write(exposition8))
 
         self.play(Indicate(tc.tex[:2]))
         self.wait()
@@ -1714,28 +1870,62 @@ class Isomorphism(Scene):
         tc_ij = TexContainer(r"i' j' = i' \times j' - i' \cdot j'", get_math_tex).next_to(tc, DOWN, buff=0.5)
         self.play(Write(tc_ij))
         self.wait()
+
+        preview_rect = Rectangle(WHITE, 4, 4).set_opacity(0)
+        group_ijk = VGroup(exposition8, tc, tc_ij)
+        self.play( VGroup(group_ijk, preview_rect).animate.arrange(buff=1) )
+        self.play(FadeIn(preview_rect.set_stroke(WHITE, opacity=1)))
+
+        exposition9 = style_exposition( VGroup(
+            get_tex( r"$i'$ and $j'$ are perpendicular so" ),
+            get_math_tex("i' \cdot j' = 0")
+        ).arrange(RIGHT) )
+        exposition9.move_to(exposition8)
+        self.play(FadeOut(exposition8))
+        self.play(Write(exposition9))
+
         for part in tc_ij.tex[6:]:
             part.tex_string += "_" # Don't match these strings.
         self.play(tc_ij.transform(r"i' j' = i' \times j'"))
         self.wait()
+
+        exposition10 = style_exposition( VGroup(
+            get_tex( r"By the right-hand rule," ),
+            get_math_tex(r"i' \times j' = k'")
+        ).arrange(RIGHT) )
+        exposition10.move_to(exposition9)
+        self.play(FadeOut(exposition9))
+        self.play(Write(exposition10))
+        self.wait()
+
         tex_ij2 = get_math_tex(r"i' j' = i' \times j' = k'").move_to(tc_ij, LEFT)
         self.play(Write(tex_ij2[6:]))
+        self.add(tex_ij2)
+        self.remove(tc_ij.set_opacity(0))
+        self.play(tex_ij2.animate.next_to(tc, DOWN, 0.5))
         self.wait()
 
-        self.play(FadeOut(tc_ij, tex_ij2))
-        self.play(Indicate(tc.tex[:2]))
+        self.play(
+            FadeOut(preview_rect, exposition10),
+            VGroup(tc, tex_ij2).animate.arrange(DOWN, 0.5)
+        )
+
+        self.play( Indicate(tc.tex[:2]) )
         self.play(tc.transform("i' j' k' = {k'}{k'}"))
+        self.play(FadeOut(tc_ij, tex_ij2))
         self.wait()
+
         self.play(tc.transform("i' j' k' = {k'}^2"))
         self.wait()
-        self.play(tc.transform("i' j' k' = -1"))
+        
+        # self.play(tc.transform("i' j' k' = -1"))
+        tex_k_sq = tc.tex[4:6]
+        self.play( Transform( tex_k_sq, get_math_tex("-1").move_to(tex_k_sq, aligned_edge=DL) ) )
         self.wait()
 
-        rotation_formula.set_opacity(0)
-        # self.play(FadeOut(tc, tex_cross_length, tex_dot), equations_prime.animate.arrange().set_opacity(1))
-        self.play(FadeOut(tc, tex_quat_product), equations_prime.animate.arrange().set_opacity(1))
+        rotation_formula.set_opacity(0).scale(2/3)
+        self.play(
+            FadeOut(tc, tex_quat_product, tex_prove),
+            equations_prime.animate.arrange(buff=0.5).set_opacity(1).scale(3/2)
+        )
         self.wait()
-
-        # self.add(index_labels(tc.tex))
-        # self.wait()
-        # return

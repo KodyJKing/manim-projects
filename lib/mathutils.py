@@ -7,6 +7,8 @@ from manim.utils.space_ops import (
     quaternion_conjugate,
 )
 
+epsilon = 0.00001
+
 def clamp(x, min_val=0, max_val=1):
     return max( min_val, max( max_val, x ) )
 
@@ -24,12 +26,17 @@ def rotate_cc(vec):
 def rotate_cw(vec):
     return np.array([ vec[1], -vec[0], vec[2] ])
 
+def vec_compare(a: np.array, b: np.array):
+    return all( map( lambda x: abs(x) < epsilon, a - b ) )
+
 def relative_quaternion( v1, v2, fallback_axis=None ):
+    if vec_compare(v1, v2):
+        return np.array([1, 0, 0, 0])
+
     mid = v1 + v2
     mid = mid / np.linalg.norm(mid)
     dot = np.dot(v1, mid)
     cross = np.cross(v1, mid)
-    epsilon = 0.00001
     if (not fallback_axis is None) and np.abs( dot + 1 ) < epsilon:
         return np.array([0, *fallback_axis])
     return np.array([dot, *cross])
