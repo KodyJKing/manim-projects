@@ -44,6 +44,8 @@ color_map = {
     "$q$": MYPINK, "q": MYPINK,
     r"$\theta$": MYPINK, r"\theta": MYPINK,
     "\\times": WHITE,
+    "complex-part": MYPINK, "$jk$-part": TEAL,
+    "complex-plane": MYPINK, "$jk$-plane": TEAL
 }
 
 def math_tex(*args, **kwargs):
@@ -152,12 +154,13 @@ def play_commute_proof(scene: Scene, unit_string: str, unit_color: str, position
         get_tex2
     ).move_to(position)
     scene.play(Write(tc_commute))
+    scene.wait()
 
     tc_commute_2 = TexContainer(
         r"a_1 a_2 + a_1 b_2 @ + b_1 @ a_2 + b_1 @ b_2 @".replace("@", unit_string), 
         get_tex2
     ).next_to(tc_commute, DOWN, 0.5)
-    scene.play( TransformMatchingTex(tc_commute.tex.copy(), tc_commute_2.tex, path_arc=30*DEGREES) )
+    scene.play( TransformMatchingTex(tc_commute.tex.copy(), tc_commute_2.tex, path_arc=30*DEGREES))
     scene.wait()
 
     tc_commute_3 = tc_commute_2.copy()
@@ -169,15 +172,16 @@ def play_commute_proof(scene: Scene, unit_string: str, unit_color: str, position
             path_arc=90*DEGREES
         )
     )
-    scene.play(swap_anim( tc_commute_3.tex[3:6], tc_commute_3.tex[7:10] ))
     scene.wait()
+    scene.play(swap_anim( tc_commute_3.tex[3:6], tc_commute_3.tex[7:10] ))
+    scene.wait(2)
 
     tc_commuted = TexContainer(
         r"(a_2 + b_2 @)(a_1 + b_1 @)".replace("@", unit_string),
         get_tex2
     ).next_to(tc_commute_3, DOWN, 0.5)
-    scene.play( TransformMatchingTex(tc_commute_3.tex.copy(), tc_commuted.tex, path_arc=30*DEGREES) )
-    scene.wait()
+    scene.play( TransformMatchingTex(tc_commute_3.tex.copy(), tc_commuted.tex, path_arc=30*DEGREES))
+    scene.wait(2)
 
     equation = VGroup(tc_commute, Tex("="), tc_commuted)
     scene.play(
@@ -355,18 +359,17 @@ class QuatMultiplication(Scene):
         _color_map = color_map | { "{i}": RED, "+":WHITE }
         tex_kw = { "t2c":_color_map }
 
-        exposition1 = Tex(
-            r"We've been assuming that complex multiplication and addition", 
-            " have the same algebraic properties as real multiplication and addition...",
-        )
-        style_exposition(exposition1)
+        exposition1 = style_exposition( Tex(
+            r"We've been assuming that complex multiplication and addition obey\\", 
+            r"the same algebraic properties as real multiplication and addition.",
+        ) ).to_edge(UP)
         self.play(Write(exposition1))
         self.wait()
 
         self.play(FadeOut(exposition1))
         exposition2 = VGroup(
             line1 := Tex(
-                r"Quaternions have all the same properties\\except their multiplication isn't commutative.",
+                r"Quaternions obey all the same properties\\except their multiplication isn't commutative.",
                 tex_to_color_map={"their multiplication isn't commutative":RED}
             ),
             line1b := VGroup(
@@ -376,28 +379,36 @@ class QuatMultiplication(Scene):
             line2 := Tex(
                 r"But real numbers still commute with any quaternion."
             )
-        ).arrange(DOWN, buff=0.35).shift(UP)
+        ).arrange(DOWN, buff=1).shift(UP)
         exposition2.scale(2/3)
         self.play(Write(line1))
-        self.wait()
+        self.wait(2)
         self.play(Write(line1b))
-        self.wait()
+        self.wait(2)
         self.play(Write(line2))
 
         tc_commute = TexContainer(math_tex(*"3 (j+2k)".split(" ")))
         tc_commute.next_to(exposition2, DOWN, 0.5)
         self.play(Write(tc_commute))
         self.play(tc_commute.transform(math_tex(*"(j+2k) 3".split(" ")), path_arc=-120*DEGREES))
-        self.wait()
-
+        self.wait(4)
         self.play(FadeOut(exposition2, tc_commute))
-        exposition3 = Tex(
-            r"You can show some other quaternions commute too,\\for instance complex quaternions still commute with each other...",
-            tex_to_color_map={"complex quaternions":YELLOW}
-        ).to_edge(UP)
+
+        exposition3 = VGroup(
+            Tex(r"You can show that some other quaternions commute too."),
+            VGroup(
+                Tex(r"\\For instance,"),
+                Tex(r"complex quaternions still commute with each other.",
+                    tex_to_color_map={"complex quaternions":YELLOW})
+            ).arrange(RIGHT)
+        ).arrange(DOWN).to_edge(UP)
         style_exposition(exposition3)
-        self.play(Write(exposition3), run_time=3)
+        self.play(Write(exposition3[0]))
         self.wait()
+        self.play(Write(exposition3[1][0]))
+        self.wait(0.5)
+        self.play(Write(exposition3[1][1:]))
+        self.wait(2)
 
         tmp_equation = play_commute_proof(self, "i", RED, UP*1.5)
         self.wait()
@@ -405,9 +416,9 @@ class QuatMultiplication(Scene):
 
         tex_ident = colored_math_tex("i^2 = j^2 = k^2 = i j k = -1", **tex_kw)
         exposition4 = VGroup(
-            line1 := Tex(r"This equation is used to define quaternion multiplication."),
+            line1 := colored_tex(r"This equation is used to define quaternion multiplication."),
             line2 := colored_tex("Like $i$, $j$ and $k$ also square to $-1$.", t2c=color_map),
-            line3 := Tex(r"This last term defines the product of distinct imaginary units."),
+            line3 := colored_tex(r"This last term defines the product of distinct imaginary units."),
         ).arrange(DOWN, buff=0.35)
         style_exposition(exposition4)#.to_edge(UP)
         exposition4.next_to(tex_ident, UP, 0.5)
@@ -420,14 +431,15 @@ class QuatMultiplication(Scene):
         self.wait()
 
         self.play(Write(line3))
+        self.wait()
         self.play(Indicate(tex_ident[6:]))
         self.wait()
         self.play(FadeOut(exposition4))
 
         exposition5 = VGroup(
             line1 := Tex(r"If you play around with this equation, you can build this times table."),
-            line2 := Tex(r"The algebra is a bit tedious, so we'll breeze through it,"),
-            line3 := Tex(r"but you can pause and follow along if you're curious.")
+            line2 := Tex(r"The algebra is a bit tedious, but we'll include it for completeness."),
+            line3 := Tex(r"Pause and follow along if you're curious.")
         ).arrange(DOWN)
         style_exposition(exposition5).to_edge(UP)
 
@@ -706,7 +718,7 @@ class ThreeD(ThreeDScene):
         exposition1 = VGroup(
             line1 := colored_tex("To start off our search for a rotation formula,", **texkw),
             line2 := colored_tex("let's look at the action of $i$ on numbers in", **texkw),
-            line3 := colored_tex("the $j$$k$-plane.", **texkw),
+            line3 := colored_tex("the $jk$-plane.", **texkw),
         ).arrange(DOWN)
         prep_exposition(exposition1).to_edge(UP)
         self.play(Write(exposition1), run_time=4)
@@ -824,7 +836,7 @@ class ThreeD(ThreeDScene):
                 exposition4 = prep_exposition( 
                     colored_tex(
                         r"Just like with complex numbers, this implies\\",
-                        r"multiplying by $i$ rotates any vector in this\\",
+                        r"multiplying by $i$ rotates vectors in this\\",
                         r"plane 90 degrees left.",
                         **texkw
                     )
@@ -880,7 +892,9 @@ class ThreeDPart2(ThreeDScene):
             self.add_fixed_in_frame_mobjects(exposition)
             return exposition
 
-        scene_color_map = {} | color_map
+        scene_color_map = {
+            "vector quaternion": YELLOW
+        } | color_map
         texkw = {"t2c":scene_color_map}
 
         self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
@@ -909,7 +923,7 @@ class ThreeDPart2(ThreeDScene):
             line2 :=  VGroup(
                 colored_tex(r"Multiplying by"),
                 colored_math_tex(r"cos \, \theta + i sin \, \theta", **texkw),
-                colored_tex(r"rotates by $\theta$ in the jk-plane.", **texkw)
+                colored_tex(r"rotates by $\theta$ in the $jk$-plane.", **texkw)
             ).arrange(),
             line3 := colored_tex(r"Only now the direction of rotation depends on the\\side we multiply on...")
         ).arrange(DOWN) ).to_edge(UP).set_opacity(0)
@@ -967,7 +981,8 @@ class ThreeDPart2(ThreeDScene):
             self.play(
                 Rotate(rotation_group, angle, vi, ORIGIN),
                 Rotate(numplane, angle, vi, ORIGIN),
-                theta_tracker.animate.increment_value(angle)
+                theta_tracker.animate.increment_value(angle),
+                run_time=2
             )
             self.wait()
             self.play( FadeOut(mobj_angle, arrow_j_copy, arrow_k_copy) )
@@ -981,7 +996,7 @@ class ThreeDPart2(ThreeDScene):
         left_group = prep_exposition( VGroup( tex_left_label, tex_left_multiply ) ).to_corner(UL)
         self.add_fixed_in_frame_mobjects(left_group)
         self.play(Write(left_group))
-        
+        self.wait()
         animate_rotation("\\theta", 60*DEGREES)
         self.wait()
 
@@ -991,7 +1006,7 @@ class ThreeDPart2(ThreeDScene):
         right_group.next_to(left_group, DOWN, aligned_edge=LEFT)
         self.add_fixed_in_frame_mobjects(right_group)
         self.play(Write(right_group))
-
+        self.wait()
         animate_rotation("-\\theta", -60*DEGREES)
         self.wait()
 
@@ -999,7 +1014,7 @@ class ThreeDPart2(ThreeDScene):
 
         # Show issue with rotation outside of jk-plane
         exposition2 = prep_exposition( colored_tex(
-            r"Unfortunately, if we try rotating vectors outside the jk-plane,\\a problem arises..."
+            r"Unfortunately, if we try rotating vectors outside the $jk$-plane,\\a problem arises...", **texkw
         ) ).to_edge(UP)
         self.play(Write(exposition2))
         self.play(Indicate(numplane, 1.1))
@@ -1041,7 +1056,7 @@ class ThreeDPart2(ThreeDScene):
                 line1 := colored_tex("But if we multiply a vector by $i$ for example,", **texkw),
                 line2 := colored_tex("the $i$ component becomes real.", **texkw),
             ).arrange(),
-            line3 := colored_tex("This isn't even a vector quaternion anymore because the real part is non-zero.")
+            line3 := colored_tex("This isn't even a vector quaternion anymore because the real part is non-zero.", **texkw)
         ).arrange(DOWN) ).to_edge(UP).set_opacity(0)
         
         # Write out i(xi + yj + zk) and simplify.
@@ -1058,6 +1073,7 @@ class ThreeDPart2(ThreeDScene):
         for step in steps:
             step[0].set_stroke(BLACK, 5, 1, True).fix_in_frame()
         play_rewrite_sequence(self, *steps)
+        self.wait()
         self.play(Write(line2.set_opacity(1)))
         self.wait()
 
@@ -1078,7 +1094,7 @@ class ThreeDPart2(ThreeDScene):
 
         exposition5 = prep_exposition( colored_tex( 
                 r"What's happening is the $i$ component is being\\",
-                r"rotated through the complex plane.",
+                r"rotated through the complex-plane.",
                 **texkw
         ) ).to_edge(UP)
         self.play(Write(exposition5), run_time=2)
@@ -1095,7 +1111,8 @@ class ThreeDPart2(ThreeDScene):
 
         exposition7 = prep_exposition( colored_tex(
             r"Let's switch to a visualization which allows us to see what's\\",
-            r"going on in the complex plane and jk-plane simultaneously..."
+            r"going on in the complex-plane and $jk$-plane simultaneously...",
+            **texkw
         ) ).to_edge(UP)
         self.play(Write(exposition7), run_time=3)
         self.wait(2)
@@ -1108,8 +1125,8 @@ class DualPlanes(Scene):
         arrow_label_dist = 0.25 * 3/2 * plane_scale
 
         scene_color_map = color_map | {
-            "complex-part": MYPINK, "$jk$-part": TEAL,
-            "complex-plane": MYPINK, "$jk$-plane": TEAL
+            # "complex-part": MYPINK, "$jk$-part": TEAL,
+            # "complex-plane": MYPINK, "$jk$-plane": TEAL
         }
         texkw = {"t2c": scene_color_map}
 
@@ -1434,7 +1451,7 @@ class DualPlanes(Scene):
 class RotationFormula(Scene):
     def construct(self):
         exposition1 = style_exposition( colored_tex(
-            r"Now we have a formula for rotations about $i$...",
+            r"Now we have a formula for rotations about $i$ that\\works on vectors outside the $jk$-plane...",
             t2c=color_map
         ) ).to_edge(UP)
         self.play(Write(exposition1))
@@ -1451,8 +1468,8 @@ class RotationFormula(Scene):
             ).arrange(RIGHT),
             Tex("where"),
             tex_q_def := colored_math_tex(r"q = cos(\theta) + i sin(\theta)", t2c=color_map),
-            # tex_q_conj_def := colored_math_tex(r"\overline{q} = cos(\theta) - i sin(\theta)", t2c=color_map),
-        ).arrange(DOWN)
+            tex_q_conj_def := colored_math_tex(r"\overline{q} = cos(\theta) - i sin(\theta)", t2c=color_map),
+        ).scale(2/3).arrange(DOWN).next_to(ORIGIN, LEFT)
         rect = SurroundingRectangle(lines, color=WHITE)
         lines.add(rect)
         
@@ -1460,58 +1477,67 @@ class RotationFormula(Scene):
         self.wait(4)
 
         exposition2 = style_exposition( colored_tex(
-            r"Let's halve this angle to rotate by $\theta$ instead.",
+            r"Rotating by $2$$\theta$ is a little awkward...",
             t2c=color_map
         ) ).next_to(lines, DOWN)
         self.play(Write(exposition2))
+        self.wait()
+        self.play(FadeOut(exposition2))
+        exposition3 = style_exposition( colored_tex(
+            r"Let's halve this angle to rotate by $\theta$ instead.",
+            t2c=color_map
+        ) ).next_to(lines, DOWN)
+        self.play(Write(exposition3))
         self.wait()
 
         self.play(
             Indicate(tex_angle[1]),
             Indicate(tex_q_def[2]), Indicate(tex_q_def[6]),
-            # Indicate(tex_q_conj_def[2]), Indicate(tex_q_conj_def[6])
+            Indicate(tex_q_conj_def[2]), Indicate(tex_q_conj_def[6])
         )
 
         q_def_2_string = r"q = cos(\tfrac{1}{2}\theta) + i sin(\tfrac{1}{2}\theta)"
         q_conj_def_2_string = r"\overline{q} = cos(\tfrac{1}{2}\theta) - i sin(\tfrac{1}{2}\theta)"
         _color_map = color_map | {r"\tfrac{1}{2}":WHITE}
-        tex_q_def_2 = colored_math_tex(q_def_2_string, t2c=_color_map).move_to(tex_q_def)
-        # tex_q_conj_def_2 = colored_math_tex(q_conj_def_2_string, t2c=_color_map).move_to(tex_q_conj_def)
-        tex_angle_2 = colored_math_tex(r"\theta", t2c=color_map).move_to(tex_angle, LEFT)
+        tex_q_def_2 = colored_math_tex(q_def_2_string, t2c=_color_map).scale(2/3).move_to(tex_q_def)
+        tex_q_conj_def_2 = colored_math_tex(q_conj_def_2_string, t2c=_color_map).scale(2/3).move_to(tex_q_conj_def)
+        tex_angle_2 = colored_math_tex(r"\theta", t2c=color_map).scale(2/3).move_to(tex_angle, LEFT)
         self.play( 
             LaggedStart(
-                # TransformMatchingTex( tex_q_conj_def, tex_q_conj_def_2),
+                TransformMatchingTex( tex_q_conj_def, tex_q_conj_def_2),
                 TransformMatchingTex( tex_q_def, tex_q_def_2),
                 TransformMatchingTex( tex_angle, tex_angle_2, shift=ORIGIN ),
                 lag_ratio=0.75
             ),
             run_time=2
         )
-        # lines.remove(tex_q_def, tex_q_conj_def)
-        lines.remove(tex_q_def)
-        # lines.add(tex_q_def_2, tex_q_conj_def_2)
-        lines.add(tex_q_def_2)
+        lines.remove(tex_q_def, tex_q_conj_def)
+        # lines.remove(tex_q_def)
+        lines.add(tex_q_def_2, tex_q_conj_def_2)
+        # lines.add(tex_q_def_2)
         line2.remove(tex_angle)
         line2.add(tex_angle_2)
 
-        self.play(FadeOut(exposition2))
+        self.play(FadeOut(exposition3))
         self.wait(2)
 
         self.play(FadeOut(exposition1, lines))
-        exposition3 = style_exposition( colored_tex(
-            "Now the question is, can we generalize this to rotations about any axis?",
+        exposition4 = style_exposition( colored_tex(
+            r"Now the question is, can we generalize this to rotations about any axis?",
             t2c={"any":YELLOW}
-        ) )
-        self.play(Write(exposition3))
+        ) ).shift(UP*2)
+        self.play(Write(exposition4))
 
 class Rotation(ThreeDScene):
     def construct(self):
 
-        def play_section(rot_axis, label_str, angle_offset, label_dist):
+        def play_section(rot_axis, label_str, angle_offset, label_dist, angle_multiplier):
             self.clear()
             self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
 
-            angle_tracker = ValueTracker(0.0001)
+            theta_tracker = ValueTracker(0.0001)
+            def get_rotation_angle():
+                return theta_tracker.get_value() * angle_multiplier
 
             axes = ThreeDAxes(
                 x_length=2, y_length=2, z_length=2,
@@ -1526,23 +1552,24 @@ class Rotation(ThreeDScene):
 
             line = Line(-rot_axis*2, rot_axis*2, color=RED)
 
+            obj_ref = Cube(.5, .75).add(Cube(.5, .75, RED).shift(vj*.75)).add(Cube(.5, .75, GREEN).shift(vk*.75))
             # obj_ref = Cube(1, .75).add(Cube(.5, .75, RED).shift(vj)).add(Cube(.5, .75, GREEN).shift(vk))
-            obj_ref = Cube(1, .75).add(Cube(.5, .75, RED).shift(vj*.75)).add(Cube(.5, .75, GREEN).shift(vk*.75))
+            # obj_ref = Cube(1, .75).add(Cube(.5, .75, RED).shift(vj*.75)).add(Cube(.5, .75, GREEN).shift(vk*.75))
             obj = always_redraw(
-                lambda: obj_ref.copy().shift(-vi*1.5).rotate_about_origin(angle_tracker.get_value(), rot_axis)
+                lambda: obj_ref.copy().shift(-vi*1.5).rotate_about_origin(get_rotation_angle(), rot_axis)
             )
 
             def get_angle():
-                theta = angle_tracker.get_value()
-                angle = arrow_angle( theta, 0.5, rot_axis, angle_offset)
-                alpha = smoothstep(0, 10*DEGREES, theta)
+                phi = get_rotation_angle()
+                angle = arrow_angle( phi, 0.5, rot_axis, angle_offset)
+                alpha = smoothstep(0, 10*DEGREES, phi)
                 angle.get_tip().set_opacity(alpha)
                 angle.set_stroke(opacity=alpha)
                 return angle
             angle = always_redraw(get_angle)
 
             def get_angle_reading():
-                theta = angle_tracker.get_value()
+                theta = theta_tracker.get_value()
                 group = VGroup(
                     colored_math_tex(r"\theta = ", t2c=color_map),
                     DecimalNumber(theta/DEGREES, 1, unit="^\circ")
@@ -1554,23 +1581,33 @@ class Rotation(ThreeDScene):
             self.add(obj, axes, angle, arrow, label, angle_reading)
             self.wait()
             # self.play(angle_tracker.animate.set_value(TAU/6))
-            self.play(angle_tracker.animate.set_value(TAU/8))
+            self.play(theta_tracker.animate.set_value(TAU/8))
             self.wait()
 
         play_section(
             rot_axis = vi,
             label_str = "i",
             angle_offset = PI / 2,
-            label_dist = 1.25
+            label_dist = 1.25,
+            angle_multiplier=2
         )
 
         self.next_section()
+        play_section(
+            rot_axis = vi,
+            label_str = "i",
+            angle_offset = PI / 2,
+            label_dist = 1.25,
+            angle_multiplier=1
+        )
 
+        self.next_section()
         play_section(
             rot_axis = normalize(vi + vj),
             angle_offset = TAU / 3,
             label_str = r"\hat{n}",
-            label_dist = 1.125   
+            label_dist = 1.125,
+            angle_multiplier=1
         )
 
 class PrimeCoordinates(ThreeDScene):
