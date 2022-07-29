@@ -225,12 +225,16 @@ class ComplexNumbers(Scene):
     def construct(self):
         color_map = { 
             "a": RED, "b": GREEN,
+            "cos": RED, "sin": GREEN, 
+            r"\theta": WHITE, "r": WHITE,
+            "i": WHITE, "+": WHITE,
             "arg": WHITE,
         }
-        tex_config = { "tex_to_color_map": color_map }
+        texkw = { "t2c": color_map }
         axes = Axes( x_axis_config=blank_axis, y_axis_config=blank_axis, x_length=20, y_length=10, tips=False ).set_z_index(-2)
         numplane = ComplexPlane().set_opacity(0.5)
         numplane.set_z_index(-1).get_coordinate_labels()
+        dot = Dot(z_index=10)
         coords = VGroup( numplane.get_coordinate_labels(), numplane.get_coordinate_labels(0) )
 
         # self.play( Create(axes), Create(coords) )
@@ -246,38 +250,36 @@ class ComplexNumbers(Scene):
         
         self.play(
             FadeOut(exposition1),
-            FadeIn(axes, coords, numplane)
+            FadeIn(axes, coords, numplane, dot)
         )
 
         # Introduce a + bi
         v = 3*c1 + 2*ci
         arrow_a = Arrow(ORIGIN, v*RIGHT, color=RED, buff=0).set_z_index(1)
-        arrow_a.add(label_a := MathTex("a", **tex_config).next_to(arrow_a, DOWN))
+        arrow_a.add(label_a := colored_math_tex("a", **texkw).next_to(arrow_a, DOWN))
         arrow_b = Arrow(ORIGIN, v*UP, color=GREEN, buff=0).shift(v*RIGHT)
-        arrow_b.add(label_b := MathTex("bi", **tex_config).next_to(arrow_b, RIGHT))
-        dot_v = ExternalLabeledDot( Dot( v ), MathTex("a + bi", **tex_config) )
+        arrow_b.add(label_b := colored_math_tex("b i", **texkw).next_to(arrow_b, RIGHT))
+        dot_v = ExternalLabeledDot( Dot( v ), colored_math_tex("a + b i", t2c=color_map) )
         arrow_v = Arrow( ORIGIN, v, buff=0 ).set_z_index(2)
         self.play( GrowArrow( arrow_a ) )
         self.play( GrowArrow( arrow_b ) )
         self.play( dot_v.create_animation() )
+
         arrow_a.remove(label_a)
         arrow_b.remove(label_b)
-        self.play(FadeOut(label_a, label_b))
+        self.add(label_a, label_b)
+
         self.wait()
         self.play( GrowArrow(arrow_v) )
 
 
         background = VGroup(coords, axes.get_axis(1))
-        self.play(FadeOut(arrow_a, arrow_b), FadeOut(numplane), background.animate.set_opacity(0.125))
+        self.play(FadeOut(numplane), background.animate.set_opacity(0.125))
 
         exposition2 = VGroup(
             Tex("We can express complex numbers in polar form...")
         ).scale(2/3).to_corner(UL)
         self.play(Write(exposition2))
-        
-        # # Define arg and modulus
-        # exposition3 = Tex("They have length,").scale(2/3).next_to(exposition2, DOWN, 1, LEFT).shift(RIGHT)
-        # self.play(Write(exposition3))
         
         brace = Brace(arrow_v, direction=arrow_v.copy().rotate(PI/2).get_unit_vector() )
         brace_tex = MathTex("r")
@@ -285,22 +287,29 @@ class ComplexNumbers(Scene):
         self.play(Create(brace), Write(brace_tex))
         self.wait()
 
-        # exposition4 = Tex("and direction.").scale(2/3).next_to(exposition3, DOWN)
-        # self.play(Write(exposition4))
-
         angle = Angle(arrow_a, arrow_v, 1 ).set_z_index(-1)
         angle_tex = MathTex("\\theta" ).move_to(angle_label_pos(arrow_a, arrow_v, 1 + 3 * SMALL_BUFF))
         self.play( Create(angle), Write(angle_tex) )
         self.wait()
 
-        self.play(dot_v.animate_relabel(
-            MathTex(
-                r"r( cos\, \theta + i sin\, \theta )",
-                tex_to_color_map={ "cos": RED, "sin": GREEN }
-            )
+        self.play(ReplacementTransform(
+            label_a, label_a := colored_math_tex(r"r cos\, \theta", t2c=color_map).move_to(label_a)
         ))
+        self.wait()
+        self.play(TransformMatchingTex(
+            label_b, label_b := colored_math_tex(r"( r sin\, \theta ) i", t2c=color_map).move_to(label_b, LEFT)
+        ))
+        self.wait(2)
 
-        # self.play(FadeOut(exposition3, exposition4))
+        self.play(dot_v.animate_relabel(
+            colored_math_tex(
+                r"r( cos\, \theta + i sin\, \theta )",
+                t2c=color_map
+            ),
+            path_arc=90*DEGREES
+        ))
+        self.wait(4)
+        self.play(FadeOut(arrow_a, arrow_b, label_a, label_b))
 
         exposition5 = Tex(
             "This length is called the number's modulus,",
@@ -317,7 +326,7 @@ class ComplexNumbers(Scene):
         ).scale(2/3).next_to(angle_tex, DOWN, 0.75)
         self.play(Write(exposition6))
 
-        arg_tex = MathTex("arg", "(a+bi)", **tex_config)
+        arg_tex = colored_math_tex("arg", "( a + b i )", **texkw)
         arg_tex[0].set_color(WHITE)
         self.play(animate_replace_tex(angle_tex, arg_tex))
         self.wait()
@@ -627,7 +636,7 @@ class ComponentTimesI(Scene):
                 "1 i;i",
                 "i i; i ^2; - 1",
                 "- 1 i; - i",
-                "- i i; - i ^2; - ( - 1 ); 1",
+                "- i i; - i ^2; 1",
             ]
         ]
         
@@ -640,7 +649,8 @@ class ComponentTimesI(Scene):
                 for substep in step:
                     tex = MathTex(*substep.split(" "))
                     if previous_line == None:
-                        tex.to_corner(UL).shift(RIGHT)
+                        # tex.to_corner(UL).shift(RIGHT)
+                        tex.move_to(3.5*LEFT+1.25*UP)
                         self.play(Write(tex))
                     else:
                         extra_anims = []
@@ -706,6 +716,8 @@ class ComponentTimesI(Scene):
             numplane.animate.set_opacity(.25),
             FadeIn(dots[0], arrow)
         )
+        rect = Rectangle(width=2, height=3).shift(LEFT*3.75+0.11*UP).set_fill(BLACK, 1)
+        self.play(FadeIn(rect))
         step_player.__next__()
         self.wait()
         for i in range(3):
@@ -715,8 +727,7 @@ class ComponentTimesI(Scene):
         step_player.__next__()
         self.play(FadeIn(arcs[3]), Rotate(arrow, PI / 2, about_point=ORIGIN))
         self.wait()
-
-        self.play(FadeOut(arrow, step_group))
+        self.play(FadeOut(arrow, rect, step_group))
 
         exposition2 = Tex("Multiplying by $i$ rotates these 4 values, 90 degrees left.")
         exposition2.scale(2/3).to_edge(UP)
@@ -726,16 +737,16 @@ class ComponentTimesI(Scene):
         self.wait()
 
         self.play(FadeOut(exposition2))
-        exposition3 = VGroup(
-            exposition3_line1 := Tex("If you scale these values,"),
-            line_real := Tex("you see that any real", tex_to_color_map={"real":RED}),
-            line_imag := Tex("or imaginary number gets", tex_to_color_map={"imaginary":GREEN}),
-            Tex("rotated 90 degrees left"),
-            Tex("when multiplied by $i$.")
-        ).arrange(DOWN, aligned_edge=LEFT)
-        exposition3.scale(2/3).to_corner(UL)
-        exposition3.set_stroke(BLACK, 5, 1, True)
-        self.play(Write(exposition3_line1))
+        exposition3 = style_exposition( VGroup(
+            Tex("The same applies for multiples of these values,"),
+            Tex(
+                "any real or imaginary number gets rotated",
+                tex_to_color_map={"real":RED, "imaginary":GREEN}
+            ),
+            Tex("90 degrees left when multiplied by $i$.")
+        ).arrange(DOWN, aligned_edge=LEFT) ).to_corner(UL)
+
+        self.play(Write(exposition3[0]))
 
         # Scaling cycle
         scale_tracker = ValueTracker(1)
@@ -747,21 +758,15 @@ class ComponentTimesI(Scene):
             return VGroup(dots, arcs)
         loop = always_redraw( get_loop )
         self.play( ReplacementTransform(VGroup(dots, arcs), loop) )
-        self.play(scale_tracker.animate.set_value(3), run_time=3)
+        self.play(scale_tracker.animate.set_value(2))
         self.wait()
 
         self.play(Write(exposition3[1:]), run_time=2)
         
         axes = numplane.get_axes()
         axis_real, axis_imag = axes
-        tex_real = line_real.get_part_by_tex("real")
-        tex_imag = line_imag.get_part_by_tex("imaginary")
-        self.play(axes.animate.set_opacity(1))
-        self.play(LaggedStart(Indicate(tex_real), axis_real.animate.set_color(RED)), run_time=1.5)
-        self.play(LaggedStart(Indicate(tex_imag), axis_imag.animate.set_color(GREEN)), run_time=1.5)
-        self.wait()
-
-        self.play(scale_tracker.animate.set_value(2), run_time=1.5)
+        self.play(axis_real.animate.set_stroke(RED, opacity=1), run_time=1.5)
+        self.play(axis_imag.animate.set_stroke(GREEN, opacity=1), run_time=1.5)
 
         self.play(FadeOut(exposition3, loop))
         self.wait()
@@ -825,9 +830,7 @@ class ActionOfI(Scene):
 
         self.add(dot, numplane)
 
-        exposition1 = Tex("Let's pick out an arbitrary point and see what happens when we multiply by $i$.")
-        exposition1.scale(2/3).to_edge(UP)
-        exposition1.set_stroke(BLACK, 5, 1, True)
+        exposition1 = style_exposition( Tex("Let's pick out an arbitrary point and see what happens when we multiply by $i$.") ).to_edge(UP)
         self.play(Write(exposition1))
         self.wait()
 
@@ -839,30 +842,26 @@ class ActionOfI(Scene):
         self.play( Create(equation_background) )
         self.wait()
 
-
         self.play(FadeOut(exposition1))
-        exposition2 = Tex("First, distribute the $i$.")
-        exposition2.scale(2/3).next_to(equation_background, LEFT, 0.5)
-        exposition2.set_stroke(BLACK, 5, 1, True)
+        exposition2 = style_exposition( Tex("First, distribute the $i$.") ).next_to(equation_background, LEFT, 0.5)
         self.play(Write(exposition2))
 
-        self.play( 
-            TransformMatchingTex( 
+        self.play(
+            TransformMatchingTex(
                 equation1, 
                 equation2 := math_tex("a i + b i i").move_to(equation1),
-                shift=ORIGIN
+                shift=ORIGIN, path_arc=-90*DEGREES
             ),
             equation_background.animate.become(get_eqn_background(equation2))
         )
 
         self.play(FadeOut(exposition2))
-        exposition3 = Tex(
-            r"We've shown that real and imaginary\\numbers get rotated 90 degrees left\\when we multiply by $i$.",
+        exposition3 = style_exposition( Tex(
+            r"The real and imaginary components\\each get rotated 90 degrees left\\when multiplied by $i$.",
             tex_to_color_map={"real":RED, "imaginary":GREEN}
-        )
-        exposition3.scale(2/3).to_edge(LEFT)
-        exposition3.set_stroke(BLACK, 5, 1, True)
+        ) ).to_edge(LEFT).shift(UP*0.25)
         self.play(Write(exposition3))
+        self.wait()
 
         arrow_uai = arrow_ua.copy()
         arrow_ubi = arrow_ub.copy()
@@ -885,14 +884,13 @@ class ActionOfI(Scene):
         self.wait()
 
         self.play(FadeOut(exposition3))
-        exposition4 = Tex(
+        exposition4 = style_exposition( Tex(
             r"But rotating component by component\\"
             r"gives the same result as rotating\\",
             r"everything in one rigid motion."
-        )
-        exposition4.scale(2/3).to_edge(LEFT)
-        exposition4.set_stroke(BLACK, 5, 1, True)
+        ) ).to_edge(LEFT).shift(UP*0.25)
         self.play(Write(exposition4))
+        self.wait()
 
         self.play(FadeIn(arrow_ua, arrow_ub))
 
@@ -1222,7 +1220,6 @@ class ComplexMultiplication(MovingCameraScene):
             line1 := colored_tex(r"Let's say you wanted to rotate $v$ by some angle, $\theta$,", **texkw),
             line2 := colored_tex(r"and scale it by some factor, $r$.", **texkw),
         ).arrange(DOWN) ).to_edge(UP).shift(UP * 2)
-        self.play(Write(line1))
 
         # Angle really does not like us passing in functional arrows for some reason.
         def get_angle():
@@ -1249,6 +1246,7 @@ class ComplexMultiplication(MovingCameraScene):
             ).arrange(RIGHT).next_to(theta_reading, DOWN, aligned_edge=LEFT)
         )
         
+        self.play(Write(line1))
         self.play(FadeIn(theta_reading))
         self.add(arrow_uv, angle_uv)
         self.play(FadeOut(angle_right), alpha_uv.animate.set_value(1), angle_u.animate.set_value(45*DEGREES), run_time=2)
@@ -1257,7 +1255,6 @@ class ComplexMultiplication(MovingCameraScene):
         self.play(Write(line2))
         r_reading.update()
         self.play(FadeIn(r_reading))
-        self.wait()
         self.play(length_u.animate.set_value(1.2))
         self.wait()
 
@@ -1335,15 +1332,14 @@ class ComplexMultiplication(MovingCameraScene):
             ).arrange(DOWN)
          ).to_edge(UP).shift(UP * 2)
         self.play(Write(line1))
-
-        tex_u = arrow_uv.label[0:11]
-        self.play(Indicate(tex_u, 1.1))
+        self.wait()
         self.play(FadeOut(arrow_uv, arrow_v, arrow_iv, arrow_cos_v, arrow_sin_iv, angle_uv, line_cos))
 
         length_u.set_value(np.sqrt(8))
 
         self.wait()
         self.play(Write(line2))
+        self.wait()
 
         arrow_u = get_arrow_rotated(
             get_tex(r"r (cos \, \theta + i sin \, \theta)"),
@@ -1364,11 +1360,28 @@ class ComplexMultiplication(MovingCameraScene):
         brace.put_at_tip(brace_tex, False)
 
         self.play(Write(line3))
+        self.wait()
         self.play(FadeIn(angle_u_mobj))
         self.wait()
 
         self.play(Write(line4))
+        self.wait()
         self.play(FadeIn(brace, brace_tex))
+        self.wait()
+
+class ComplexMultiplicationOutro(Scene):
+    def construct(self):
+        exposition1 = style_exposition( colored_tex( r"So we've proven our rotation and scaling rules for complex multiplication." ) ).to_edge(UP)
+        self.play(Write(exposition1))
+        self.wait()
+        self.play(FadeOut(exposition1))
+        exposition2 = style_exposition( colored_tex( 
+            r"Before we move on to quaternions,", r" let's take a second\\to discuss pure rotations and their inverses.",
+            t2c={"pure rotations": YELLOW, "inverses": YELLOW}
+        ) )
+        self.play(Write(exposition2[0]))
+        self.wait(0.5)
+        self.play(Write(exposition2[1:]), run_time=3)
         self.wait()
 
 class UnitComplexNumbers(Scene):
@@ -1421,11 +1434,12 @@ class UnitComplexNumbers(Scene):
         self.play(FadeIn(circle))
 
         self.play(Write(line2))
-
         self.wait()
-        self.play(Indicate(circle), Indicate(tex_mod_equals_one))
+
+        # self.play(Indicate(circle), Indicate(tex_mod_equals_one))
 
         self.play(Write(tex_form))
+        self.wait()
 
         line_re = Line(ORIGIN, RIGHT)
         line_re.set_z_index(-2)
