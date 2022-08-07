@@ -620,7 +620,8 @@ class ComponentTimesI(Scene):
     def construct(self):
         exposition1 = Tex(
             r"We can start to get a feel for why complex multiplication\\"\
-            r" produces rotation by looking at successive powers of $i$."
+            r" produces rotation by looking at successive powers of $i$.",
+            tex_to_color_map={"powers of $i$": YELLOW}
         ).scale(2/3)
         self.play(Write(exposition1))
         self.wait()
@@ -740,7 +741,7 @@ class ComponentTimesI(Scene):
         exposition3 = style_exposition( VGroup(
             Tex("The same applies for multiples of these values,"),
             Tex(
-                "any real or imaginary number gets rotated",
+                "so any real or imaginary number gets rotated",
                 tex_to_color_map={"real":RED, "imaginary":GREEN}
             ),
             Tex("90 degrees left when multiplied by $i$.")
@@ -765,8 +766,16 @@ class ComponentTimesI(Scene):
         
         axes = numplane.get_axes()
         axis_real, axis_imag = axes
-        self.play(axis_real.animate.set_stroke(RED, opacity=1), run_time=1.5)
-        self.play(axis_imag.animate.set_stroke(GREEN, opacity=1), run_time=1.5)
+
+        self.play(axis_real.animate.set_stroke(RED, width=4, opacity=1), run_time=1.5)
+        self.play(axis_imag.animate.set_stroke(GREEN, width=4, opacity=1), run_time=1.5)
+        numplane.set_z_index(-2)
+        self.play(Wiggle(axes.set_z_index(-1)))
+        self.play(
+            axis_real.animate.set_stroke(width=2),
+            axis_imag.animate.set_stroke(width=2)
+        )
+        self.wait()
 
         self.play(FadeOut(exposition3, loop))
         self.wait()
@@ -1395,7 +1404,8 @@ class UnitComplexNumbers(Scene):
             "u": U_COLOR, r"\overline{u}":CONJ_COLOR,
             # r"\theta": U_COLOR,
             "cos":RED, "sin":GREEN,
-            "i": WHITE, "-": WHITE
+            "i": WHITE, "-": WHITE,
+            "opposite rotation": YELLOW
         }
 
         def get_tex(*strings):
@@ -1462,7 +1472,8 @@ class UnitComplexNumbers(Scene):
                 label_theta = MathTex(theta_text).scale(.8).move_to(angle.get_midpoint() * 2)
                 label_theta.set_opacity(alpha)
 
-                label = MathTex(label_text, color=color).next_to(dot, u, buff=0.1)
+                # label = MathTex(label_text, color=color).next_to(dot, u, buff=0.1)
+                label = MathTex(label_text, color=color).move_to(u * 1.4)
 
                 arrow_radius = 2
                 theta_buff = PI/32
@@ -1474,6 +1485,7 @@ class UnitComplexNumbers(Scene):
                     color=color
                 )
                 arrow.get_tip().set_opacity(alpha)
+                arrow.set_stroke(opacity=alpha)
                 
                 result = VDict({
                     "dot": dot, "line": line, "angle": angle,
@@ -1486,7 +1498,7 @@ class UnitComplexNumbers(Scene):
         dot_u = always_redraw(get_dot("u", color=U_COLOR))
 
         self.play(Create(dot_u))
-        self.play(theta_tracker.animate.set_value(135*DEGREES), run_time=1.5)
+        self.play(theta_tracker.animate.set_value(135*DEGREES), run_time=3)
         self.play(FadeOut(numplane))
         self.wait()
 
