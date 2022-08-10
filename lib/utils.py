@@ -21,6 +21,12 @@ def swap_anim(mobj1: Mobject, mobj2: Mobject, aligned_edge=ORIGIN):
         animate_arc_to(mobj2, mobj1, aligned_edge=aligned_edge)
     )
 
+def get_alpha_tracker(mobj: VMobject, initial_value=1):
+    tracker = ValueTracker(initial_value)
+    updater = lambda mobj, dt: mobj.set_opacity(tracker.get_value())
+    mobj.add_updater(updater, call_updater=True)
+    return tracker
+
 def tex_matches(tex: MathTex, *parts):
     matches = [ tex.get_part_by_tex(part) for part in parts ]
     not_none = [ match for match in matches if not match is None ]

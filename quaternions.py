@@ -1,4 +1,5 @@
 from email.errors import FirstHeaderLineIsContinuationDefect
+import math
 from typing import List
 from webbrowser import get
 from click import style
@@ -11,7 +12,7 @@ from complex import AlgebraicProps
 from lib.TexContainer import TexContainer
 from lib.angle3D import angle3D
 from lib.arrow_angle import arrow_angle
-from lib.mathutils import polar2xy, relative_quaternion, relative_quaternion2, smoothstep
+from lib.mathutils import polar2xy, relative_quaternion, relative_quaternion2, rotate_cc, rotate_cw, rotate_vec_by_quat, smoothstep
 import numpy as np
 
 from lib.utils import animate_arc_to, animate_replace_tex, colored_math_tex, colored_tex, compose_colored_tex, play_rewrite_sequence, style_exposition, swap_anim, tex_matches
@@ -1131,6 +1132,144 @@ class ThreeDPart2(ThreeDScene):
         ) ).to_edge(UP)
         self.play(Write(exposition7), run_time=3)
         self.wait(2)
+
+class GeneralJKRotation(Scene):
+    def construct(self):
+        scene_color_map = color_map | {
+            "v'": MYPINK, "v": WHITE
+        }
+        words = ["+", "sin", "cos"]
+        def get_math_tex(*strings, **kwargs):
+            return colored_math_tex(*strings, t2c=scene_color_map, words=words, **kwargs)
+
+        numplane = NumberPlane(
+            axis_config = { "decimal_number_config": { "num_decimal_places": 0 } },
+            x_axis_config = { "decimal_number_config": { "unit": "j" } },
+            y_axis_config = { "decimal_number_config": { "unit": "k" } }
+        ).add_coordinates().set_opacity(0.25).set_z_index(-10)
+        dot = Dot(z_index=10)
+        self.add(numplane, dot)
+
+        v = RIGHT * 3 + UP * 1
+        v_angle = math.atan2(v[1], v[0])
+        v_unit = normalize(v)
+        v_left_unit = rotate_cc(v)
+        v_right_unit = rotate_cw(v)
+
+        q_angle = 45*DEGREES
+        qv = rotate_vector(v, q_angle, OUT)
+        vq = rotate_vector(v, -q_angle, OUT)
+        
+        arrow_v = LabeledArrow( Arrow(ORIGIN, v, buff=0), get_math_tex("v") )
+
+        self.play(arrow_v.grow_animation())
+        self.wait()
+        self.play(FadeOut(numplane))
+
+        q_def = get_math_tex(r"q = cos \, \theta + i sin \, \theta").to_corner(UL)
+
+        def play_rotate_explanation(
+            sign, theta, 
+            text_rot, text_rot2, text_rot3,
+            text_perp,
+        ):
+            arrow_perp_v = LabeledArrow( 
+                Arrow(ORIGIN, v, buff=0).rotate_about_origin(PI/2 * sign),
+                get_math_tex(text_perp) 
+            )
+
+            def get_rotated_system(theta):
+                alpha = smoothstep(1*DEGREES, 30*DEGREES, theta)
+                arrow_rot_v = LabeledArrow( 
+                    Arrow(ORIGIN, v, buff=0, color=MYPINK).rotate_about_origin(theta*sign),
+                    get_math_tex("v'"),
+                    aligned_edge=DOWN if sign == 1 else UP
+                )
+                arrow_cos = LabeledArrow(
+                    Arrow(ORIGIN, v * np.cos(theta), buff=0, color=RED),
+                    get_math_tex(r"cos(\theta) v").scale(2/3).rotate(v_angle),
+                    alpha=0.5, distance=0, perp_distance=-0.4*sign
+                )
+                arrow_sin = LabeledArrow(
+                    Arrow(ORIGIN, v * np.sin(theta), buff=0, color=GREEN)
+                    .rotate_about_origin(PI/2*sign)
+                    .shift(arrow_cos.arrow.get_end()),
+                    get_math_tex(r"sin(\theta) " + text_perp).scale(2/3).rotate(v_angle-PI/2),
+                    alpha=0.5, distance=0, perp_distance=-0.4*sign
+                )
+                angle = Angle(arrow_v.arrow, arrow_rot_v.arrow, color=MYPINK, other_angle=sign<0).set_z_index(-1)
+                angle_label = get_math_tex(r"\theta").move_to(angle.point_from_proportion(0.5) * 2)
+                return VDict({
+                    "arrow_rot_v": arrow_rot_v,
+                    "arrow_cos": arrow_cos,
+                    "arrow_sin": arrow_sin,
+                    "angle": angle,
+                    "angle_label": angle_label,
+                }).set_opacity(alpha)
+
+            self.play(arrow_perp_v.grow_animation())
+            self.wait()
+
+            angle_tracker = ValueTracker(0.1*DEGREES)
+            system = always_redraw( lambda: get_rotated_system(angle_tracker.get_value()) )
+            self.add(system)
+            self.play(angle_tracker.animate.set_value(theta), run_time=2)
+            self.wait(2)
+            
+            system.suspend_updating()
+            arrow_rot_v: LabeledArrow = system["arrow_rot_v"]
+            arrow_cos: LabeledArrow = system["arrow_cos"]
+            arrow_sin: LabeledArrow = system["arrow_sin"]
+
+            self.play(
+                arrow_rot_v.animate_relabel(
+                    get_math_tex(text_rot), 
+                    extra_sources=VGroup(arrow_cos.label, arrow_sin.label)
+                ),
+                FadeOut(arrow_cos.arrow),
+                FadeOut(arrow_sin.arrow),
+                FadeOut(arrow_perp_v)
+            )
+            self.wait(2)
+            self.play(arrow_rot_v.animate_relabel(get_math_tex(text_rot2), path_arc=-90*DEGREES))
+            self.wait()
+
+            if sign == 1:
+                self.play( TransformMatchingTex(
+                    arrow_rot_v.label.copy(), q_def,
+                    path_arc=-30*DEGREES
+                ) )
+                self.wait()
+
+            self.play(arrow_rot_v.animate_relabel(get_math_tex(text_rot3)))
+            self.wait()
+            # self.play(FadeOut(system["angle_label"]))
+
+            return VGroup(system["arrow_rot_v"], system["angle"], system["angle_label"])
+
+        left_rot_group = play_rotate_explanation(
+            1, q_angle, 
+            r"cos(\theta) v + sin(\theta) i v",
+            r"( cos \, \theta + i sin \, \theta) v",
+            r"q v",
+            "i v"
+        )
+
+        self.play(left_rot_group.animate.set_opacity(0.25))
+
+        right_rot_group = play_rotate_explanation(
+            -1, q_angle, 
+            r"cos(\theta) v + sin(\theta) v i",
+            r"v ( cos \, \theta + i sin \, \theta)",
+            r"v q",
+            "v i"
+        )
+
+        self.play(left_rot_group.animate.set_opacity(1))
+
+
+
+        self.wait()
 
 class DualPlanes(Scene):
     def construct(self):
