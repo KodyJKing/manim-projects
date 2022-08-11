@@ -1763,11 +1763,11 @@ class Rotation(ThreeDScene):
                 )
                 self.wait()
 
-                anims = [FadeOut(angle, arrow, label)]
                 if fadeout:
-                    anims.append(angle_reading.animate.set_opacity(0))
-                self.play(*anims)
-                if fadeout:
+                    self.play(
+                        FadeOut(angle, arrow, label),
+                        angle_reading.animate.set_opacity(0)
+                    )
                     self.remove(angle_reading)
 
             return rotate
