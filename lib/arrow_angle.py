@@ -1,6 +1,5 @@
 import numpy as np
 from manim import *
-from sympy import Curve
 from lib.mathutils import polar2xy, relative_quaternion, vec_compare
 
 def arrow_angle(

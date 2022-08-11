@@ -1,13 +1,8 @@
-from email.errors import FirstHeaderLineIsContinuationDefect
 import math
 from typing import List
-from webbrowser import get
-from click import style
 from manim import *
 from manim.mobject.opengl.opengl_three_dimensions import OpenGLSurface
 from manim.utils.space_ops import ( quaternion_mult )
-from pkg_resources import yield_lines
-from sympy import ZZ_I, rad
 from complex import AlgebraicProps
 from lib.TexContainer import TexContainer
 from lib.angle3D import angle3D
@@ -1701,61 +1696,86 @@ class RotationFormula(Scene):
 class Rotation(ThreeDScene):
     def construct(self):
 
-        def play_section(rot_axis, label_str, angle_offset, label_dist, angle_multiplier):
+        scene_color_map = color_map | {
+            r"\theta_1": MYPINK,
+            r"\theta_2": MYPINK,
+            r"\theta_3": MYPINK,
+        }
+
+        def section():
             self.clear()
             self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
-
-            theta_tracker = ValueTracker(0.0001)
-            def get_rotation_angle():
-                return theta_tracker.get_value() * angle_multiplier
-
             axes = ThreeDAxes(
                 x_length=2, y_length=2, z_length=2,
                 x_range=[-1, 1], y_range=[-1, 1], z_range=[-1, 1],
                 tips=False
             ).set_opacity(0.25)
-
-            arrow = Arrow3D(ORIGIN, rot_axis, color=RED)
-            label = style_exposition( MathTex(label_str, color=RED) )
-            label.shift(rot_axis * label_dist)
-            label.fix_orientation()
-
-            line = Line(-rot_axis*2, rot_axis*2, color=RED)
-
             obj_ref = Cube(.5, .75).add(Cube(.5, .75, RED).shift(vj*.75)).add(Cube(.5, .75, GREEN).shift(vk*.75))
-            # obj_ref = Cube(1, .75).add(Cube(.5, .75, RED).shift(vj)).add(Cube(.5, .75, GREEN).shift(vk))
-            # obj_ref = Cube(1, .75).add(Cube(.5, .75, RED).shift(vj*.75)).add(Cube(.5, .75, GREEN).shift(vk*.75))
-            obj = always_redraw(
-                lambda: obj_ref.copy().shift(-vi*1.5).rotate_about_origin(get_rotation_angle(), rot_axis)
-            )
+            obj = obj_ref.copy().shift(-vi*1.5)
 
-            def get_angle():
-                phi = get_rotation_angle()
-                angle = arrow_angle( phi, 0.5, rot_axis, angle_offset)
-                alpha = smoothstep(0, 10*DEGREES, phi)
-                angle.get_tip().set_opacity(alpha)
-                angle.set_stroke(opacity=alpha)
-                return angle
-            angle = always_redraw(get_angle)
+            self.add(obj, axes)
 
-            def get_angle_reading():
-                theta = theta_tracker.get_value()
-                group = VGroup(
-                    colored_math_tex(r"\theta = ", t2c=color_map),
-                    DecimalNumber(theta/DEGREES, 1, unit="^\circ")
-                ).arrange(RIGHT)
-                return group.fix_in_frame().scale(2/3).shift(DOWN * 1.1)
-            angle_reading = always_redraw(get_angle_reading)
+            def rotate(
+                rot_axis, rot_angle, label_str,
+                angle_offset, label_dist, 
+                angle_multiplier=1, 
+                fadeout=False,
+                fadein=False,
+                theta_label=r"\theta"
+            ):
+                theta_tracker = ValueTracker(0.0001)
+                def get_rotation_angle():
+                    return theta_tracker.get_value() * angle_multiplier
 
-            # self.add(obj, axes, line, angle, arrow, angle_reading)
-            self.add(obj, axes, angle, arrow, label, angle_reading)
-            self.wait()
-            # self.play(angle_tracker.animate.set_value(TAU/6))
-            self.play(theta_tracker.animate.set_value(TAU/8))
-            self.wait()
+                arrow = Arrow3D(ORIGIN, rot_axis, color=RED)
+                label = style_exposition( MathTex(label_str, color=RED) )
+                label.shift(rot_axis * label_dist)
+                label.fix_orientation()
 
-        play_section(
+                def get_angle():
+                    phi = get_rotation_angle()
+                    angle = arrow_angle( phi, 0.5, rot_axis, angle_offset)
+                    alpha = smoothstep(0, 10*DEGREES, phi)
+                    angle.get_tip().set_opacity(alpha)
+                    angle.set_stroke(opacity=alpha)
+                    return angle
+                angle = always_redraw(get_angle)
+
+                def get_angle_reading():
+                    theta = theta_tracker.get_value()
+                    group = VGroup(
+                        colored_math_tex(theta_label + " = ", t2c=scene_color_map),
+                        DecimalNumber(theta/DEGREES, 1, unit="^\circ")
+                    ).arrange(RIGHT)
+                    return group.fix_in_frame().scale(2/3).shift(DOWN * 1.1)
+                angle_reading = always_redraw(get_angle_reading)
+
+                mobjects = [angle, arrow, label, angle_reading]
+                if fadein:
+                    self.play(FadeIn(*mobjects))
+                else:
+                    self.add(*mobjects)
+                
+                self.wait()
+                self.play(
+                    theta_tracker.animate.set_value(rot_angle),
+                    Rotate(obj, rot_angle * angle_multiplier, rot_axis, ORIGIN)
+                )
+                self.wait()
+
+                anims = [FadeOut(angle, arrow, label)]
+                if fadeout:
+                    anims.append(angle_reading.animate.set_opacity(0))
+                self.play(*anims)
+                if fadeout:
+                    self.remove(angle_reading)
+
+            return rotate
+        
+        rotate = section()
+        rotate(
             rot_axis = vi,
+            rot_angle = TAU / 8,
             label_str = "i",
             angle_offset = PI / 2,
             label_dist = 1.25,
@@ -1763,21 +1783,70 @@ class Rotation(ThreeDScene):
         )
 
         self.next_section()
-        play_section(
+        rotate = section()
+        rotate(
             rot_axis = vi,
+            rot_angle = TAU / 8,
             label_str = "i",
             angle_offset = PI / 2,
             label_dist = 1.25,
-            angle_multiplier=1
         )
 
         self.next_section()
-        play_section(
+        rotate = section()
+        rotate(
             rot_axis = normalize(vi + vj),
+            rot_angle = TAU / 8,
             angle_offset = TAU / 3,
             label_str = r"\hat{n}",
             label_dist = 1.125,
-            angle_multiplier=1
+        )
+
+        self.next_section()
+        rotate = section()
+        rotate(
+            rot_axis = normalize(vi + vj),
+            rot_angle = TAU / 8,
+            angle_offset = TAU / 3,
+            label_str = r"i'",
+            label_dist = 1.125,
+        )
+
+        self.next_section()
+        rotate = section()
+        angle1 = TAU / 8
+        angle2 = TAU / 8
+        axis1 = normalize(vi + vj)
+        axis2 = normalize(axis1+vk)
+        rotate(
+            rot_axis = axis1, rot_angle = angle1,
+            angle_offset = TAU / 3,
+            label_str = r"\hat{n}_1",
+            label_dist = 1.125,
+            theta_label=r"\theta_1",
+            fadeout=True,
+        )
+        rotate(
+            rot_axis = axis2, rot_angle = angle2,
+            angle_offset = TAU / 3,
+            label_str = r"\hat{n}_2",
+            label_dist = 1.125,
+            theta_label=r"\theta_2",
+            fadein=True,
+        )
+        
+        self.next_section()
+        q1 = quaternion_from_angle_axis(angle1, axis1)
+        q2 = quaternion_from_angle_axis(angle2, axis2)
+        q3 = quaternion_mult(q2, q1)
+        angle3, axis3 = angle_axis_from_quaternion(q3)
+        rotate = section()
+        rotate(
+            rot_axis = axis3, rot_angle = angle3,
+            angle_offset = TAU / 3,
+            label_str = r"\hat{n}_3",
+            label_dist = 1.125,
+            theta_label=r"\theta_3"
         )
 
 class PrimeCoordinates(ThreeDScene):
