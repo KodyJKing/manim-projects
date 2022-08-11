@@ -2230,3 +2230,45 @@ class IsomorphismProof(Scene):
             equations_prime.animate.arrange(buff=0.5).set_opacity(1).scale(3/2)
         )
         self.wait()
+
+class Composition(Scene):
+    def construct(self):
+        scene_color_map = {
+            "compose rotations": YELLOW
+        }
+        texkw = {"t2c": scene_color_map}
+
+        exposition1 = style_exposition( colored_tex(
+                "Before we wrap up, it's worth talking about how to compose rotations.",
+                **texkw
+        ) )
+
+        exposition2 = style_exposition( colored_tex(
+            r"We know how to rotate vectors, but how do we turn two\\",
+            r"sequential rotations to a single rotation?",
+            **texkw
+        ) ).to_edge(UP)
+
+        exposition3 = style_exposition( colored_tex(
+            r"The trick is to look at what happens to an arbitrary vector, $v$, when we apply multiple rotations.",
+            **texkw
+        ) ).to_edge(UP)
+
+        self.play(Write(exposition1))
+        self.wait(2)
+        self.play(FadeOut(exposition1))
+        self.play(Write(exposition2))
+        self.wait(2)
+        self.play(FadeOut(exposition3))
+        self.play(Write(exposition3))
+        self.wait(2)
+        self.play(FadeOut(exposition3))
+
+        # tc = TexContainer( r"q_1 v \overline{q_1}", lambda s: colored_math_tex(s, **texkw) )
+
+        # self.play(Write(tc))
+
+        # self.play(tc.transform(r"(q_1 v \overline{q_1})"))
+        # self.play(tc.transform(r"q_2 (q_1 v \overline{q_1}) \overline{q_2}"))
+
+        # self.wait()
