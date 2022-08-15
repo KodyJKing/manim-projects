@@ -10,7 +10,7 @@ from lib.arrow_angle import arrow_angle
 from lib.mathutils import polar2xy, relative_quaternion, relative_quaternion2, rotate_cc, rotate_cw, rotate_vec_by_quat, smoothstep
 import numpy as np
 
-from lib.utils import animate_arc_to, animate_replace_tex, colored_math_tex, colored_tex, compose_colored_tex, play_rewrite_sequence, style_exposition, swap_anim, tex_matches
+from lib.utils import animate_arc_to, animate_replace_tex, colored_math_tex, colored_tex, compose_colored_tex, line_through, play_rewrite_sequence, style_exposition, swap_anim, tex_matches
 from lib.LabeledArrow import LabeledArrow
 
 SurfaceClass = OpenGLSurface if config.renderer == "opengl" else Surface
@@ -2037,7 +2037,8 @@ class IsomorphismProof(Scene):
         words = ["-", "=", "^2"]
         scene_color_map = color_map | {
             "vector quaternions": YELLOW,
-            "right-hand rule": YELLOW
+            "right-hand rule": YELLOW,
+            "any unit vector": YELLOW
         }
         def get_math_tex(string, t2c={}):
             return colored_math_tex(string, words=words, t2c=scene_color_map | t2c)
@@ -2231,15 +2232,32 @@ class IsomorphismProof(Scene):
         )
         self.wait()
 
+        exposition11 = style_exposition(
+            get_tex("And like that, we've proven this formula for rotations about any unit vector.")
+        ).to_edge(UP, 2)
+        self.play(Write(exposition11))
+        self.wait()
+        self.play(FadeOut(ident, rotation_formula[0]), rotation_formula[1].animate.to_edge(LEFT, 2).shift(DOWN))
+        self.wait()
 class Composition(Scene):
     def construct(self):
         scene_color_map = {
-            "compose rotations": YELLOW
+            "Matthew S Burns": YELLOW, "Orion Nye": YELLOW,
+            "composing rotations": YELLOW,
+            r"$\overline{q_1}$": GREEN, "$q_1$": GREEN,
+            r"$\overline{q_2}$": BLUE, "$q_2$": BLUE,
+            r"$\overline{q_3}$": RED, "$q_3$": RED,
+            r"\overline{q_1}": GREEN, "q_1": GREEN,
+            r"\overline{q_2}": BLUE, "q_2": BLUE,
+            r"\overline{q_3}": RED, "q_3": RED,
+            "$v$": WHITE, "v": WHITE
         }
         texkw = {"t2c": scene_color_map}
 
+        BUFF = 2
+
         exposition1 = style_exposition( colored_tex(
-                "Before we wrap up, it's worth talking about how to compose rotations.",
+                "Before we wrap up, one last note about composing rotations...",
                 **texkw
         ) )
 
@@ -2247,28 +2265,110 @@ class Composition(Scene):
             r"We know how to rotate vectors, but how do we turn two\\",
             r"sequential rotations to a single rotation?",
             **texkw
-        ) ).to_edge(UP)
+        ) ).to_edge(UP, BUFF)
 
         exposition3 = style_exposition( colored_tex(
-            r"The trick is to look at what happens to an arbitrary vector, $v$, when we apply multiple rotations.",
+            r"The trick is to look at what happens to an arbitrary\\vector, $v$, when we apply multiple rotations.",
             **texkw
-        ) ).to_edge(UP)
+        ) ).to_edge(UP, BUFF)
+
+        exposition4 = style_exposition( colored_tex(
+            r"These terms are inverses of each other.",
+            **texkw
+        ) ).to_edge(UP, BUFF)
+
+        exposition5 = style_exposition( colored_tex(
+            r"So rotating by $q_1$ and then $q_2$ has the same effect as rotating by $q_2$$q_1$.",
+            **texkw
+        ) ).to_edge(UP, BUFF)
 
         self.play(Write(exposition1))
         self.wait(2)
         self.play(FadeOut(exposition1))
         self.play(Write(exposition2))
-        self.wait(2)
-        self.play(FadeOut(exposition3))
+
+        arrow = CurvedDoubleArrow(LEFT * 1.5, RIGHT * 1.5, tip_length=0.2, radius=4)
+        arrow.shift(DOWN)
+        self.play(FadeIn(arrow))
+
+        self.wait(3)
+        self.play(FadeOut(exposition2, arrow))
         self.play(Write(exposition3))
-        self.wait(2)
+        self.wait(3)
+
+        tc = TexContainer( r"v", lambda s: colored_math_tex(s, **texkw) )
+        self.play(Write(tc))
+        self.wait(0.5)
+        self.play(tc.transform(r"q_1 v \overline{q_1}", shift=DOWN))
+        self.wait()
+        self.play(tc.transform(r"q_2 (q_1 v \overline{q_1}) \overline{q_2}", shift=DOWN))
+        self.wait()
+        self.play(tc.transform(r"(q_2 q_1) v (\overline{q_1} \overline{q_2})"))
+
+        left_term = tc.tex[0:4]
+        right_term = tc.tex[5:9]
+        left_underline = Underline(left_term, color=YELLOW)
+        right_underline = Underline(right_term, color=YELLOW)
+
+        self.play( LaggedStart( Create(left_underline), Create(right_underline) ) )
+
         self.play(FadeOut(exposition3))
+        self.play(Write(exposition4))
 
-        # tc = TexContainer( r"q_1 v \overline{q_1}", lambda s: colored_math_tex(s, **texkw) )
+        tc2 = TexContainer( r"q_2 q_1 \, \overline{q_1} \overline{q_2}", lambda s: colored_math_tex(s, **texkw) )
+        tc2.next_to(exposition4, DOWN, 0.5)
+        self.play( TransformMatchingTex(tc.tex.copy(), tc2.tex) )
+        self.wait()
 
-        # self.play(Write(tc))
+        inner_terms = tc2.tex[1:3]
+        line = line_through(inner_terms)
+        self.play(Create(line))
+        self.play(tc2.transform( r"q_2 \, \overline{q_2}" ), FadeOut(line))
+        self.wait()
+        line = line_through(tc2.tex)
+        self.play(Create(line))
+        self.play(tc2.transform( r"1", transform_mismatches=True ), FadeOut(line))
+        self.wait()
+        
+        inverse_of_product = colored_math_tex("\Rightarrow \, \overline{q_1} \overline{q_2} = \overline{ ( q_2 q_1 ) }", **texkw).move_to(tc2)
+        self.play( FadeOut(tc2), run_time=0.5 )
+        self.play( Write(inverse_of_product) )
+        self.wait(2)
 
-        # self.play(tc.transform(r"(q_1 v \overline{q_1})"))
-        # self.play(tc.transform(r"q_2 (q_1 v \overline{q_1}) \overline{q_2}"))
+        next_tex = colored_math_tex(r"(q_2 q_1) v \overline{(q_2 q_1)}", **texkw)
+        next_tex.get_parts_by_tex("q_1")[1].tex_string += "#"
+        next_tex.get_parts_by_tex("q_2")[1].tex_string += "#"
+        self.play(tc.transform(
+            next_tex,
+            key_map = {
+                "\overline{q_1}": "q_1#",
+                "\overline{q_2}": "q_2#"
+            } 
+        ))
+        self.wait()
+        self.play(FadeOut(inverse_of_product, left_underline, right_underline, exposition4))
+        self.wait()
 
-        # self.wait()
+        tc3 = colored_math_tex("q_3 = q_2 q_1", **texkw).next_to(tc, DOWN, 0.5)
+        self.play(Write(tc3))
+        self.wait()
+        self.play(tc.transform(
+            "q_3 v \overline{q_3}",
+            transform_mismatches=True
+        ))
+        self.wait()
+
+        self.play(Write(exposition5))
+        self.wait(4)
+
+        self.play(FadeOut(exposition5, tc, tc3))
+        thanks = colored_tex( "Thanks for watching!", **texkw )
+        thanks2 = style_exposition( VGroup(
+            colored_tex( r"Thanks to Matthew S Burns for permission to use\\the Infinifactory and Opus Magnum soundtracks,", **texkw  ),
+            colored_tex( r"\\and Orion Nye for help with video editing.", **texkw  ),
+        ) ).arrange(DOWN)
+        self.play(Write(thanks))
+        self.play(thanks.animate.to_edge(UP, BUFF))
+        self.play(Write(thanks2[0]))
+        self.play(Write(thanks2[1]))
+        self.wait(4)

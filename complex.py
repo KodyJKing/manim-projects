@@ -1306,6 +1306,13 @@ class ComplexMultiplication(MovingCameraScene):
         self.play(arrow_sin_iv.grow_animation())
         self.wait()
 
+        self.play( angle_u.animate.set_value(60*DEGREES) )
+        self.wait()
+        self.play( angle_u.animate.set_value(30*DEGREES) )
+        self.wait()
+        self.play( angle_u.animate.set_value(45*DEGREES) )
+        self.wait()
+
         self.play(FadeOut(theta_reading, r_reading))
 
         self.play(Write(line2))

@@ -131,3 +131,11 @@ def fallback_mobj(get_primary: Callable[[],Mobject], fallback: Mobject):
         return get_primary()
     except Exception as err:
         return fallback
+
+def line_through(mobj: VMobject, alpha = 0.8, scale = 1.5, color=RED, **kwargs):
+    return Line(
+        interpolate(mobj.get_corner(UL), mobj.get_corner(UR), alpha),
+        interpolate(mobj.get_corner(DR), mobj.get_corner(DL), alpha),
+        color=color,
+        **kwargs
+    ).scale(scale)
