@@ -451,6 +451,19 @@ class CrossDotProduct(Scene):
         self.play(Write(exposition2))
         self.wait()
 
+        height = dot_table.height
+        self.play(
+            cross_table.animate.scale_to_fit_height(height),
+            ijk_table.animate.scale_to_fit_height(height),
+        )
+        table_eqn = VGroup(
+            cross_table, MathTex("-").set_opacity(0), 
+            dot_table, MathTex("=").set_opacity(0),
+            ijk_table
+        )
+        self.play(table_eqn.animate.arrange().set_opacity(1))
+        self.wait()
+
         equation_quat_cross_dot = MathTex(r" uv = u \times v - u \cdot v ", tex_to_color_map=color_map)
         equation_quat_cross_dot.move_to(ijk_table)
         equation_quat_cross_dot.add_updater(alpha_updater)
@@ -460,6 +473,11 @@ class CrossDotProduct(Scene):
             tmp_group.animate.arrange(buff=0.5).next_to(tables, UP, 1),
             alpha_tracker.set_value(0).animate.set_value(1)
         )
+        self.wait()
+
+        underline = Underline(equation_quat_cross_dot, buff=MED_SMALL_BUFF)
+        self.play(Create(underline))
+        self.wait()
         
         # equation_quat_cross_dot.next_to(ijk_table, UP)
         # self.play( Write(equation_quat_cross_dot) )
@@ -628,6 +646,69 @@ class TableDerivation(Scene):
 
         self.play( FadeOut(tex_ident), table.animate.move_to(ORIGIN).scale(2/3 / 0.5) )
 
+class IJKAreBasis_Exposition(Scene):
+    def construct(self):
+        texkw = {"t2c": color_map}
+        exposition = style_exposition( colored_tex("i, j and k act like basis vectors for 3D space", **texkw) )
+        self.play(Write(exposition))
+        self.wait()
+
+class IJKAreBasis(ThreeDScene):
+    def construct(self):
+        scene_color_map = color_map | {}
+        texkw = {"t2c":scene_color_map}
+        
+        self.set_camera_orientation(phi=65*DEGREES, theta=110*DEGREES)
+
+        axes = standard_axes()
+        numplane = jkplane().set_opacity(0)
+        self.add(numplane)
+        self.add(axes)
+
+        arrow_i, arrow_j, arrow_k, tex_i, tex_j, tex_k = coordinate_frame()
+        self.add_fixed_orientation_mobjects( tex_i, tex_j, tex_k )
+
+        self.play( 
+            FadeIn( arrow_i, arrow_j, arrow_k),
+            Write(tex_i), Write(tex_j), Write(tex_k) )
+
+        x, y, z = ValueTracker(0), ValueTracker(2), ValueTracker(0)
+        # x, y, z = ValueTracker(1), ValueTracker(1), ValueTracker(2)
+
+        y_line = always_redraw( lambda:  Line3D(ORIGIN, [0, y.get_value(), 0], color=GREEN) )
+        x_line = always_redraw( lambda:  Line3D([0, y.get_value(), 0], [x.get_value(), y.get_value(), 0], color=RED) )
+        z_line = always_redraw( lambda:  Line3D([x.get_value(), y.get_value(), 0], [x.get_value(), y.get_value(), z.get_value()], color=BLUE) )
+        self.add(y_line, x_line, z_line)
+
+        def get_arrow():
+            _x, _y, _z = (x.get_value(), y.get_value(), z.get_value())
+            arrow = Arrow3D( ORIGIN, [_x, _y, _z] )
+            return arrow
+
+        def get_label():
+            _x, _y, _z = (x.get_value(), y.get_value(), z.get_value())
+            label = VGroup(
+                VGroup( DecimalNumber( _x ), MathTex("i", color=RED) ).arrange(buff=SMALL_BUFF),
+                MathTex("+"), 
+                VGroup( DecimalNumber( _y ), MathTex("j", color=GREEN) ).arrange(buff=SMALL_BUFF),
+                MathTex("+"), 
+                VGroup( DecimalNumber( _z ), MathTex("k", color=BLUE) ).arrange(buff=SMALL_BUFF),
+            ).arrange().scale(2/3).shift(UP*2 + RIGHT*2).fix_in_frame()
+            return label
+
+        arrow = always_redraw( get_arrow )
+        label = always_redraw( get_label )
+
+        self.play(FadeIn(arrow, label))
+        # self.add(arrow, label)
+        # self.wait()
+
+        self.play(x.animate.set_value(1))
+        self.wait()
+        self.play(z.animate.set_value(2))
+        self.wait()
+
+        
 class ThreeD(ThreeDScene):
     def construct(self):
         def prep_exposition(exposition: Mobject):

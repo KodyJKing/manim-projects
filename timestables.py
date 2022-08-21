@@ -1,11 +1,18 @@
 from manim import *
 
-ihat = "\hat{\imath}"
-jhat = "\hat{\jmath}"
-khat = "\hat{k}"
-ihatn = "-" + ihat
-jhatn = "-" + jhat
-khatn = "-" + khat
+# ihat = "\hat{\imath}"
+# jhat = "\hat{\jmath}"
+# khat = "\hat{k}"
+# ihatn = "-" + ihat
+# jhatn = "-" + jhat
+# khatn = "-" + khat
+
+ihat = "i"
+jhat = "j"
+khat = "k"
+ihatn = "-i"
+jhatn = "-j"
+khatn = "-k"
 
 def add_table_highlights(width: int, table: Table):
     for i in range(width):
