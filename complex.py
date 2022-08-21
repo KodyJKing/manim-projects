@@ -1,4 +1,3 @@
-from copyreg import constructor
 import math
 from manim import *
 from manim.utils.space_ops import ( 
@@ -13,8 +12,9 @@ from lib.TexContainer import TexContainer
 from lib.ExternalLabeledDot import ExternalLabeledDot
 from lib.LabeledArrow import LabeledArrow
 from lib.TransformMatchingKeyTex import TransformMatchingKeyTex, set_transform_key
-from lib.mathutils import clamp, polar2xy, rotate_cc, rotate_cw, smoothstep
-from lib.utils import angle_label_pos, animate_arc_to, animate_replace_tex, colored_math_tex, colored_tex, compose_colored_tex, fallback_mobj, style_exposition
+from lib.mathutils import *
+from lib.utils import *
+from timestables import pure_quat_times_table
 
 c1 = np.array([1, 0, 0])
 ci = np.array([0, 1, 0])
@@ -28,6 +28,68 @@ def eq_shift( eq: MathTex, other: MathTex ):
 def align_eqs(eq: MathTex, *others: MathTex):
     for other in others:
         other.shift( eq_shift(other, eq) )
+
+class Introduction(Scene):
+    def construct(self):
+        scene_color_map = {}
+        texkw = { "t2c":scene_color_map }
+        table_color_map = {"i": RED, "j": GREEN, "k": BLUE,}
+
+        prereqs = style_exposition( VGroup(
+            colored_tex("To get the most out of this video, you should be familiar with:"),
+            BulletedList(
+                "Trigonometry",
+                "Vectors",
+                "Dot products",
+                "Cross products"
+            )
+        ).arrange(DOWN, 0.75) )
+        self.play(FadeIn(prereqs))
+        self.wait(4)
+        self.play(FadeOut(prereqs))
+        
+        line1_t2c = { "quaternions": YELLOW }
+        exposition1 = style_exposition( VGroup(
+            line1 := colored_tex("In this video, I'll explain how quaternions represent 3D rotations.", t2c=line1_t2c),
+            line2 := colored_tex(
+                r"Quaternions are sort of like 4D vectors, but\\",
+                "with a multiplication operation defined.", t2c={"multiplication": YELLOW}
+            ),
+            line3 := colored_tex(
+                "I'll show you how quaternion multiplication produces rotations 3D rotations."
+            )
+        ) ).to_edge(UP, 1)
+        quat_form = colored_math_tex(
+            r"\begin{bmatrix}a\\b\\c\\d\end{bmatrix} \,\,\, \text{ or } \,\,\,", r"a + b i + c j + d k",
+            t2c=table_color_map
+        )
+        table = pure_quat_times_table(table_color_map).scale(0.5).to_edge(RIGHT).shift(RIGHT*5)
+        self.play(Write(line1))
+        self.wait(2)
+        self.play(FadeOut(line1))
+        self.play(Write(line2), run_time=2)
+        self.wait(2)
+        self.play(Write(quat_form))
+        self.wait(2)
+        self.play( FadeOut(quat_form[0]), VGroup(quat_form[1:], table).animate.arrange(buff=1) )
+        self.wait(2)
+        self.play(FadeOut(line2, quat_form[1:], table))
+        self.play(Write(line3))
+        self.wait(2)
+        self.play(FadeOut(line3))
+
+        line1_t2c = { "complex numbers": YELLOW }
+        exposition2 = style_exposition( VGroup(
+            line1 := colored_tex(r"But first we'll explore a simpler number system, the complex numbers.", t2c=line1_t2c),
+            line2 := colored_tex(
+                r"I'll show you how they represent 2D rotations. Then, we can understand\\",
+                r"quaternion rotation in terms of complex rotation.",
+            ),
+         ).arrange(DOWN) ).to_edge(UP, 1)
+        self.play(Write(line1))
+        self.wait(2)
+        self.play(Write(line2), run_time=2)
+        self.wait(2)
 
 class Intro(ThreeDScene):
     def construct(self):

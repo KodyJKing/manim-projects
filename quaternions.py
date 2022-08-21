@@ -13,6 +13,8 @@ import numpy as np
 from lib.utils import animate_arc_to, animate_replace_tex, colored_math_tex, colored_tex, compose_colored_tex, line_through, play_rewrite_sequence, style_exposition, swap_anim, tex_matches
 from lib.LabeledArrow import LabeledArrow
 
+from timestables import pure_quat_times_table, vec_cross_table, vec_dot_table
+
 SurfaceClass = OpenGLSurface if config.renderer == "opengl" else Surface
 
 vi = RIGHT
@@ -44,77 +46,11 @@ color_map = {
     "complex-plane": MYPINK, "$jk$-plane": TEAL
 }
 
-def add_table_highlights(width: int, table: Table):
-    for i in range(width):
-        table.add_highlighted_cell((i + 2, 1), DARK_GRAY)
-        table.add_highlighted_cell((1, i + 2), DARK_GRAY)
-    table.add_highlighted_cell((1, 1), GRAY)
-    return table
-
 def math_tex(*args, **kwargs):
     return MathTex(*args, tex_to_color_map=color_map, **kwargs)
 
 def replace_tex(tex, text, **kwargs):
     return animate_replace_tex(tex, text, tex_to_color_map=color_map, **kwargs)
-
-def vec_cross_table(tex_to_color_map=None):
-    ih, jh, kh = ihat, jhat, khat
-    im, jm, km = ihatn, jhatn, khatn
-    op = r"u \times v"
-    crossproduct_table = [
-        [op, ih, jh, kh],
-        [ih,  0, kh, jm],
-        [jh, km,  0, ih],
-        [kh, jh, im,  0]
-    ]
-    return add_table_highlights(3, MathTable(
-        crossproduct_table,
-        include_outer_lines=True,
-        element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
-    ) )
-
-def vec_dot_table(tex_to_color_map=None):
-    ih, jh, kh = ihat, jhat, khat
-    op = r"u \cdot v"
-    dot_product_table = [
-        [op, ih, jh, kh],
-        [ih,  1,  0,  0],
-        [jh,  0,  1,  0],
-        [kh,  0,  0,  1]
-    ]
-    return add_table_highlights(3, MathTable(
-        dot_product_table,
-        include_outer_lines=True,
-        element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
-    ) )
-
-def pure_quat_times_table(tex_to_color_map=None):
-    op = "uv"
-    quaternion_table_ijk = [
-        [op,  "i",  "j",  "k"],
-        ["i", "-1",  "k", "-j"],
-        ["j", "-k", "-1",  "i"],
-        ["k",  "j", "-i", "-1"]
-    ]
-    return add_table_highlights(3, MathTable(
-        quaternion_table_ijk,
-        include_outer_lines=True,
-        element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map)
-    ) )
-
-def quat_times_table(tex_to_color_map=None):
-    quaternion_table = [
-        ["", "1",  "i",  "j",  "k"],
-        ["1", "1",  "i",  "j",  "k"],
-        ["i", "i", "-1",  "k", "-j"],
-        ["j", "j", "-k", "-1",  "i"],
-        ["k", "k",  "j", "-i", "-1"]
-    ]
-    return MathTable(
-        quaternion_table,
-        include_outer_lines=True,
-        element_to_mobject=lambda s: MathTex(s, tex_to_color_map=tex_to_color_map),
-    )
 
 def coordinate_frame(suffix="", label_dist=0.5):
     arrow_i = Arrow3D(ORIGIN, vi, color=RED)
@@ -2091,7 +2027,7 @@ class IsomorphismProof(Scene):
         self.play(tc.transform(r"{i'}^2 = {i'} \times {i'} - {i'} \cdot {i'}"))
         self.wait()
 
-        exposition4 = style_exposition( get_tex( r"Any vector crossed with itself goes to zero..." ) )
+        exposition4 = style_exposition( get_tex( r"A vector crossed with itself is zero..." ) )
         exposition4.move_to(exposition3)
         self.play(FadeOut(exposition3))
         self.play(Write(exposition4))
@@ -2105,7 +2041,7 @@ class IsomorphismProof(Scene):
         self.play(tc.transform(r"{i'}^2 = - {i'} \cdot {i'}"))
         self.wait()
 
-        exposition5 = style_exposition( get_tex( r"And the dot product of a vector with itself is its length squared." ) )
+        exposition5 = style_exposition( get_tex( r"And a vector dotted with itself is its length squared." ) )
         exposition5.move_to(exposition4)
         self.play(FadeOut(exposition4))
         self.play(Write(exposition5))
@@ -2114,8 +2050,9 @@ class IsomorphismProof(Scene):
         tex_i_dot_i = tc.tex[4:7]
         self.play(Indicate(tex_i_dot_i))
 
-        tc.tex[1].tex_string = "^{2}"
-        self.play(tc.transform(r"{i'}^{2} = - |{i'}|^2", shift=DOWN))
+        tex_next = get_math_tex(r"{i'}^{2} = - |{i'}|^2")
+        tc.tex[1].tex_string = tex_next[1].tex_string
+        self.play(tc.transform(tex_next, shift=DOWN))
         self.wait()
         self.play(FadeOut(exposition5))
 
@@ -2287,8 +2224,8 @@ class Composition(Scene):
         self.play(FadeOut(exposition1))
         self.play(Write(exposition2))
 
-        arrow = CurvedDoubleArrow(LEFT * 1.5, RIGHT * 1.5, tip_length=0.2, radius=4)
-        arrow.shift(DOWN)
+        arrow = CurvedArrow(LEFT * 1.5, RIGHT * 1.5, tip_length=0.2, radius=4)
+        arrow.shift(DOWN * 2)
         self.play(FadeIn(arrow))
 
         self.wait(3)
