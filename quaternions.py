@@ -1157,8 +1157,8 @@ class GeneralJKRotation(Scene):
         numplane = NumberPlane(
             axis_config = { "decimal_number_config": { "num_decimal_places": 0 } },
             x_axis_config = { "decimal_number_config": { "unit": "j" } },
-            y_axis_config = { "decimal_number_config": { "unit": "k" } }
-        ).add_coordinates().set_opacity(0.25).set_z_index(-10)
+            y_axis_config = { "decimal_number_config": { "unit": "k" } },
+        ).add_coordinates().set_opacity(0.5).set_z_index(-10)
         dot = Dot(z_index=10)
         self.add(numplane, dot)
 
@@ -1175,10 +1175,11 @@ class GeneralJKRotation(Scene):
         arrow_v = LabeledArrow( Arrow(ORIGIN, v, buff=0), get_math_tex("v") )
 
         self.play(arrow_v.grow_animation())
-        self.wait()
+        self.wait(2)
         self.play(FadeOut(numplane))
 
-        q_def = get_math_tex(r"q = cos \, \theta + i sin \, \theta").to_corner(UL)
+        # q_def = get_math_tex(r"q = cos \, \theta + i sin \, \theta").to_corner(UL)
+        q_def = get_math_tex(r"q = cos \, \theta + i sin \, \theta").to_edge(LEFT).shift(RIGHT)
 
         def play_rotate_explanation(
             sign, theta, 
@@ -1279,9 +1280,7 @@ class GeneralJKRotation(Scene):
 
         self.play(left_rot_group.animate.set_opacity(1))
 
-
-
-        self.wait()
+        self.wait(6)
 
 class DualPlanes(Scene):
     def construct(self):

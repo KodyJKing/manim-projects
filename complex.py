@@ -50,13 +50,13 @@ class Introduction(Scene):
         
         line1_t2c = { "quaternions": YELLOW }
         exposition1 = style_exposition( VGroup(
-            line1 := colored_tex("In this video, I'll explain how quaternions represent 3D rotations.", t2c=line1_t2c),
+            line1 := colored_tex(r"In this video, you'll learn what quaternions are and\\how they represent 3D rotations.", t2c=line1_t2c),
             line2 := colored_tex(
-                r"Quaternions are sort of like 4D vectors, but\\",
-                "with a multiplication operation defined.", t2c={"multiplication": YELLOW}
+                r"Quaternions are like vectors that support\\",
+                "special a multiplication operation.", t2c={"multiplication": YELLOW}
             ),
             line3 := colored_tex(
-                "I'll show you how quaternion multiplication produces rotations 3D rotations."
+                "We'll find that their multiplication is perfect for describing 3D rotations."
             )
         ) ).to_edge(UP, 1)
         quat_form = colored_math_tex(
@@ -80,9 +80,9 @@ class Introduction(Scene):
 
         line1_t2c = { "complex numbers": YELLOW }
         exposition2 = style_exposition( VGroup(
-            line1 := colored_tex(r"But first we'll explore a simpler number system, the complex numbers.", t2c=line1_t2c),
+            line1 := colored_tex(r"But first, we'll explore a simpler number system, the complex numbers.", t2c=line1_t2c),
             line2 := colored_tex(
-                r"I'll show you how they represent 2D rotations. Then, we can understand\\",
+                r"We'll go over how they represent 2D rotations. Then, we'll explain\\",
                 r"quaternion rotation in terms of complex rotation.",
             ),
          ).arrange(DOWN) ).to_edge(UP, 1)
@@ -1214,6 +1214,8 @@ class ArbitraryTimesArbitrary2(MovingCameraScene):
             tex_to_color_map={"u":BLUE, "v":YELLOW})
         eq_polar_product.to_corner(UL)
         self.play( Write(eq_polar_product) )
+
+        self.wait(6)
 
 class ComplexMultiplication(MovingCameraScene):
     def construct(self):
