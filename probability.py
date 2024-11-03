@@ -3,6 +3,9 @@ import random
 from typing import Callable, Iterable
 from manim import *
 
+from lib.animations import WaveInDirection
+from lib.utils import colored_tex, style_exposition
+
 stdnormal = lambda x: math.exp( -x*x / 2 ) / math.sqrt(TAU)
 
 def binomialDistribution(p, n):
@@ -52,139 +55,132 @@ def listToFunction(values):
 
 class DiscreteSampling(Scene):
     def construct(self):
-        random.seed(68)
-
         p = 0.5
         n = 10
-        func = binomialDistribution(p, n)
-        # func = rampDistribution(n)
+        pdf = binomialDistribution(p, n)
         domain = list( range(n + 1)  )
-        values = list( map( func, domain ) )
-        cumulativeFunc = listToFunction(cumulative(values))
-        chart = BarChart( 
-            values = values,
-            bar_names=domain,
-            y_range=[0, 1, 0.2],
-            y_length=5,
-            x_length=5,
-            bar_width=0.9,
-            bar_colors=barColors
-        )
-        chart.to_edge(RIGHT, 2)
-        xaxis, yaxis = chart.axes
-        yaxis.add_numbers([0], excluding=[])
 
-        self.play( FadeIn(chart) )
+        chart = InverseTransformChart( 
+            domain, pdf,
+            y_range=[0, 1, 0.2],
+            y_length=5, x_length=4,
+            bar_colors=barColors,
+            bar_width=0.9,
+        )
+        chart.to_edge(RIGHT, 1)
+
+        self.play(Create(chart))
         self.wait()
 
-        bars = chart.bars.copy()
-        targetBar = bars[ n // 2 ]
+        # text = style_exposition( VGroup(
+        #     colored_tex( r"We want to pick a value on the x-axis", 
+        #         t2c={"x-axis":YELLOW} ),
+        #     colored_tex( r"according to a given probability distribution.", 
+        #         t2c={"probability distribution":YELLOW} ),
+        # ).arrange(DOWN) ).to_edge(LEFT, 1)
+        # self.play( Write( text[0] ) )
+        # self.wait()
 
-        def showCumulativePlot():
-            plot = chart.plot( 
-                cumulativeFunc,
-                x_range=[0, n+1, 0.01], 
-                use_smoothing=False,
-                color=BLUE
-            )
-            self.play(FadeIn(plot))
+        # self.play( chart.animateXAxisWave() )
+        # self.wait()
 
-        def playSelect(
-            u,  slowVersion=False,
-            stack=False, showPlot=False,
-            showBraces=False,
-        ):
-            s = 0
-            anims = []
-            for bar in bars:
-                anim = bar.animate.shift(s * UP)
-                if stack:
-                    anim.move_to( targetBar, coor_mask=RIGHT )
-                anims.append( anim )
-                s += bar.height
+        # self.play( Write( text[1] ) )
+        # self.wait()
 
-            if showPlot:
-                showCumulativePlot()
-                self.wait()
-            
-            # chart.bars.set_opacity(0.125 / 2)
-            chart.bars.set_opacity(0)
-            self.play(  LaggedStart( *anims ) )
-            if slowVersion:
-                self.wait()
-                self.play( Indicate( yaxis, scale_factor=1.05 ) )
+        # self.play( chart.animateBarWave() )
+        # self.wait()
 
-            lineStart = chart.c2p(0, u)
-            lineEnd = chart.c2p(n + 1, u)
-            dot = Dot(color=YELLOW).move_to( lineStart )
-            line = DashedLine( lineStart, lineEnd, color=YELLOW )
-            selector = VGroup(dot, line)
+        # self.play( FadeOut(text) )
+        # text = style_exposition( VGroup(
+        #     colored_tex( r"One way to do this is to stack up each bar," ),
+        #     colored_tex( r"and uniformly pick a random y from 0 to 1.", 
+        #         t2c={"y":YELLOW} ),
+        # ).arrange(DOWN) ).to_edge(LEFT, 1)
 
-            hitIndex = select(values, u)
-            hitBar = bars[hitIndex]
-            hitBar.set_z_index(1)
-            labels = chart.x_axis.labels
-            hitLabel = labels[hitIndex]
+        # self.play( Write( text[0] ) )
+        # self.wait()
 
-            hitOriginalColor = hitBar.get_color()
+        # self.play( chart.animateStack(vertical=True) )
+        # self.wait()
 
-            if slowVersion:
-                self.play( GrowFromCenter(dot) )
-                self.play( FadeIn(line), hitBar.animate.set_color(YELLOW) )
+        # self.play( Write( text[1] ) )
+        # self.wait()
 
-                if showBraces:
-                    braces = VGroup()
-                    anims = []
-                    for bar in bars:
-                        if bar.height >= 0.1:
-                            sharpness = 0.2 / bar.height
-                            brace = Brace(bar.copy().scale(0.95), RIGHT, sharpness=0.2)
-                            braces.add( brace )
-                            anims.append( FadeIn(brace, shift=LEFT) )
-                    self.play( LaggedStart(*anims ) )
-                    self.wait()
-                    self.play( FadeOut( braces ) )
-                    
-                self.play( Wiggle( hitBar ) )
-                self.wait()
-            else:
-                self.play(
-                    GrowFromCenter(dot),
-                    FadeIn(line),
-                    hitBar.animate.set_color(YELLOW)
-                )
-            
+        # self.play( chart.animateYAxisWave() )
+        # self.wait()
 
-            anims = []
-            for i in range( len( bars ) ):
-                bar = bars[i]
-                original = chart.bars[i]
-                anims.append( bar.animate.move_to(original) )
-            
-            self.play( 
-                LaggedStart( *anims ), 
-                FadeOut(selector),
-                # selector.animate.set_opacity(0.25).set_color(GRAY),
-                hitLabel.animate.set_color(YELLOW)
-            )
+        # self.play( chart.animateSelect(0.7, slow=True) )
+        # self.wait()
+        
+        # self.play( FadeOut(text) )
+        # text = style_exposition( VGroup(
+        #     colored_tex( r"We select whichever bar this hits." ),
+        #     colored_tex(
+        #         r"This way,", r" the probability of a bar being\\", 
+        #         r"selected is proportional to its height."
+        #     ),
+        # ).arrange(DOWN, 1) ).to_edge(LEFT, 1)
 
-            self.play( Flash(hitLabel) )
-            if slowVersion:
-                self.wait()
+        # self.play( Write( text[0] ) )
+        # self.wait()
 
-            self.play( 
-                hitBar.animate.set_color( hitOriginalColor ),
-                hitLabel.animate.set_color(WHITE)
-            )
-            if slowVersion:
-                self.wait()
+        # self.play( Wiggle(chart.hitBar) )
 
-        playSelect(0.8,   slowVersion=True,  stack=True,  showBraces=True)
-        playSelect(0.436, slowVersion=True,  stack=False )
-        playSelect(0.225, slowVersion=False, stack=False, showPlot=True)
+        # self.play( Write( text[1][0] ) )
+        # self.play( Write( text[1][1:], run_time=3 ) )
+        # self.wait()
 
-        # for i in range(4):
-        #     playSelect( random.random() )
+        # chart.addBraces()
+        # self.play( chart.animateInBraces() )
+        # self.wait()
+
+        # self.play( FadeOut(chart.braces) )
+
+        # self.play( FadeOut(text) )
+        # hitStr = str(chart.hitIndex)
+        # text = style_exposition( VGroup(
+        #     colored_tex( r"Putting everything back,", "" ),
+        #     colored_tex( r"we can see we've selected " + hitStr + ".",
+        #         t2c={hitStr:YELLOW} )
+        # ).arrange(DOWN) ).to_edge(LEFT, 2)
+        
+        # self.play( Write( text[0] ) )
+
+        # self.play( chart.animateUnstack(), FadeOut(chart.selector) )
+        # self.wait()
+
+        # self.play( Write( text[1] ) )
+
+        # self.play( Flash(chart.hitLabel) )
+        # self.wait()
+
+        # self.play( chart.animateUnhighlight() )
+        # self.wait()
+
+        # self.play( FadeOut(text) )
+        text = style_exposition( colored_tex(
+            r"To better connect this to the CDF,\\",
+            r"it will help to instead stack the\\",
+            r"bars like this..."
+        ) ).to_edge(LEFT, 1)
+
+        self.play( Write(text[0]) )
+        self.play( Write(text[1:], run_time=3) )
+        
+        self.play( chart.animateStack(vertical=False) )
+        self.wait()
+
+        self.play( FadeOut(text) )
+        text = style_exposition( colored_tex(
+            r"What we're doing is finding where the\\",
+            r"sampled y value intersects the CDF\\",
+            r"of our distribution."
+        ) ).to_edge(LEFT, 1)
+        self.play( Write( text, run_time=4 ) )
+
+        self.play( Create( chart.addCDFPlot( color=BLUE ) ) )
+
+        self.play( chart.animateSelect( 0.5, False, includeVertical=True ) )
 
 class InverseTransformChart(BarChart):
     def __init__(
@@ -197,18 +193,116 @@ class InverseTransformChart(BarChart):
         self.domain = domain
         self.values = list( map( pdf, domain ) )
         self.cdf = listToFunction(cumulative(self.values))
+
         super().__init__(
             values = self.values,
             bar_names=domain,
-            bar_colors=barColors,
             **kwargs
         )
+
+        self.y_axis.remove(self.y_axis.numbers)
+        numbers = self.y_axis.numbers
+        self.y_axis.add_numbers([0], excluding=[])
+        for number in numbers:
+            self.y_axis.numbers.add(number)
+
+        self.y_axis.add_ticks()
+
+        self.refBars = self.bars.copy().set_opacity(0)
+        self.add(self.refBars)
     
-    def addCumulativePlot(self, **kwargs):
-        self.commulativePlot = self.plot( 
+    def addCDFPlot(self, **kwargs):
+        self.cdfPlot = self.plot( 
             self.cdf,
             x_range=[0, self.count, 0.01], 
             use_smoothing=False,
             **kwargs
         )
-        return self.commulativePlot
+        self.add(self.cdfPlot)
+        return self.cdfPlot
+    
+    def addBraces(self):
+        self.braces = VGroup()
+        for bar in self.bars:
+            if bar.height >= 0.1:
+                brace = Brace(bar.copy().scale(0.95), RIGHT, sharpness=0.2)
+                self.braces.add( brace )
+        self.add(self.braces)
+        return self.braces
+    
+    def animateInBraces(self):
+        return LaggedStart( *[ FadeIn(brace, shift=LEFT) for brace in self.braces ] )
+    
+    def animateStack(self, vertical=False):
+        height = 0
+        anims = []
+        centerBar = self.bars[ self.count // 2 ]
+        for bar in self.bars:
+            anim = bar.animate.shift(height * UP)
+            if vertical:
+                anim.move_to( centerBar, coor_mask=RIGHT )
+            anims.append( anim )
+            height += bar.height
+        return LaggedStart( *anims )
+
+    def animateUnstack(self):
+        return LaggedStart( *[
+            self.bars[i].animate.move_to( self.refBars[i] )
+            for i in range( self.count )
+        ] )
+    
+    def animateSelect(self, selection, slow=False, includeVertical=False):
+        self.selection = selection
+
+        self.hitIndex = select(self.values, selection)
+        self.hitBar = self.bars[self.hitIndex]
+        self.hitBar.set_z_index(1)
+        self.hitLabel = self.x_axis.labels[self.hitIndex]
+        
+        lineStart = self.c2p(0, selection)
+        if includeVertical:
+            hitx = self.hitBar.get_center()[0]
+            hity = lineStart[1]
+            lineEnd = np.array([hitx, hity, 0])
+        else:
+            lineEnd = self.c2p(self.count, selection)
+        self.selectorDot = Dot(color=YELLOW).move_to(lineStart)
+        self.selectorLine =  DashedLine(lineStart, lineEnd, color=YELLOW)
+        self.selector = VGroup(self.selectorDot, self.selectorLine)
+        self.add(self.selector)
+
+        dotAnim = FadeIn( self.selectorDot, shift=RIGHT*2 )
+        lineAnim = FadeIn( self.selectorLine )
+        barAnim = self.hitBar.animate.set_color(YELLOW)
+        
+        if slow:
+            return Succession( dotAnim, lineAnim, barAnim, run_time=3 )
+        else:
+            return AnimationGroup( dotAnim, lineAnim, barAnim )
+    
+    def animateUnhighlight(self):
+        return self.hitBar.animate.set_color( self.refBars[self.hitIndex].get_color() )
+    
+    def animateYAxisWave(self):
+        self.y_axis.remove(self.y_axis.numbers)
+        return WaveInDirection( 
+            self.y_axis.numbers, UP, LEFT,
+            _on_finish=lambda scene: self.y_axis.add(self.y_axis.numbers)
+        )
+    
+    def animateXAxisWave(self):
+        labels = self.x_axis.labels
+        self.x_axis.remove(labels)
+        return ApplyWave( 
+            labels,
+            _on_finish=lambda scene: self.x_axis.add(labels)
+        )
+    
+    def animateBarWave(self):
+        bars = self.bars
+        bars.set_z_index(-1)
+        self.remove(bars)
+        return ApplyWave( 
+            bars, 
+            _on_finish=lambda scene: self.add(bars)
+        )
